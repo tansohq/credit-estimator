@@ -54,6 +54,40 @@ importers:
         specifier: ^4.1.7
         version: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(jsdom@25.0.1)(vite@6.4.3(@types/node@22.20.1))
 
+  apps/demo:
+    dependencies:
+      '@tansohq/credit-burndown-react':
+        specifier: workspace:*
+        version: link:../../packages/ui-react
+      '@tansohq/credit-forecast-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@tansohq/credit-forecast-json':
+        specifier: workspace:*
+        version: link:../../packages/adapters/json
+      '@tansohq/credit-forecast-schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.3
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.0.2
+        version: 19.2.3(@types/react@19.2.17)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.4.3
+        version: 6.4.3(@types/node@22.20.1)
+
   packages/adapters/csv:
     dependencies:
       '@tansohq/credit-forecast-schema':

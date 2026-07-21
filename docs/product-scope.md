@@ -228,7 +228,7 @@ not use `modelVersion`.
 | Future balance deltas | Forecast-only application | Supplies and executes real changes | Core MVP |
 | Embeddable React UI | Neutral accessible presentation | Embeds, themes, and supplies data | Primary MVP |
 | JSON/CSV adapters | Neutral serialization mapping | Imports or exports product data | Implemented |
-| Hosted reference app | Demonstrates integration | Deploys if useful | Next |
+| Hosted reference app | Demonstrates local integration | Deploys if useful | Implemented locally |
 | Tanso adapter | Maps neutral snapshot and result | Owns Tanso credentials and APIs | Later |
 | Balance and allocation truth | — | Full ownership | Outside |
 | Usage events and persistence | — | Full ownership | Outside |

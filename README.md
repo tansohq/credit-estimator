@@ -72,6 +72,16 @@ does not read the clock, filesystem, network, credentials, or product state.
 Invalid input throws a structured `ForecastValidationError` with a portable
 failure envelope.
 
+## Run the reference app
+
+```bash
+pnpm demo
+```
+
+Open the local URL printed by Vite. The app calculates entirely in the browser
+and demonstrates explicit submission, scenario presets, warnings, calculation
+traces, and host-owned JSON export.
+
 ## Embed the React UI
 
 The host calculates or fetches the neutral result, then passes both snapshots
@@ -153,5 +163,5 @@ controlled composition, chart table equivalents, and SSR-safe rendering.
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-Tanso remains an optional future adapter. A hosted API, reference demo, runtime
-wallet operations, and product-specific integrations are deferred.
+Tanso remains an optional future adapter. A hosted API, runtime wallet
+operations, and product-specific integrations are deferred.

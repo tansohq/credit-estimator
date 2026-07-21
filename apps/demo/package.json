@@ -1,0 +1,30 @@
+{
+  "name": "@tansohq/credit-forecast-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:dependencies": "pnpm --filter @tansohq/credit-forecast-schema build && pnpm --filter @tansohq/credit-forecast-core build && pnpm --filter @tansohq/credit-forecast-json build && pnpm --filter @tansohq/credit-burndown-react build",
+    "build": "vite build",
+    "predev": "pnpm build:dependencies",
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tansohq/credit-burndown-react": "workspace:*",
+    "@tansohq/credit-forecast-core": "workspace:*",
+    "@tansohq/credit-forecast-json": "workspace:*",
+    "@tansohq/credit-forecast-schema": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.4.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

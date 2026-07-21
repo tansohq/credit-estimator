@@ -3,8 +3,8 @@
 ## Status
 
 This document defines the target architecture and implemented primary MVP.
-Schema, core, React UI, and JSON/CSV adapters exist. The demo and
-product-specific adapters remain deferred.
+Schema, core, React UI, JSON/CSV adapters, and the local reference demo exist.
+Product-specific adapters remain deferred.
 
 The product is an embeddable, customer-facing credit usage forecaster. A SaaS
 company supplies a read-only account snapshot. The estimator calculates
