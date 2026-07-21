@@ -1,0 +1,43 @@
+{
+  "name": "missing observed date is rejected instead of defaulted to zero",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-03-05",
+    "period": {
+      "startDate": "2026-03-01",
+      "endDate": "2026-03-10",
+      "allocation": "500",
+      "lowBalanceThreshold": "50"
+    },
+    "lookbackDays": 2,
+    "dailyUsage": [
+      { "date": "2026-03-01", "creditsUsed": "20" },
+      { "date": "2026-03-02", "creditsUsed": "20" },
+      { "date": "2026-03-04", "creditsUsed": "20" }
+    ],
+    "balance": {
+      "current": "300",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expectedError": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "code": "INVALID_INPUT",
+    "issues": [
+      {
+        "code": "INCOMPLETE_DAILY_HISTORY",
+        "path": "input.dailyUsage",
+        "message": "dailyUsage must contain exactly one bucket for every date in [period.startDate, asOf); missing 2026-03-03"
+      }
+    ]
+  }
+}

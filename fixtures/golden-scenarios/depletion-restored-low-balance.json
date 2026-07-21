@@ -1,0 +1,103 @@
+{
+  "name": "depletion and restored low ending balance produce both warnings",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-01-02",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-04",
+      "allocation": "100",
+      "lowBalanceThreshold": "10"
+    },
+    "lookbackDays": 1,
+    "dailyUsage": [
+      {
+        "date": "2026-01-01",
+        "creditsUsed": "10"
+      }
+    ],
+    "balance": {
+      "current": "5",
+      "schedule": [
+        {
+          "date": "2026-01-03",
+          "creditDelta": "20",
+          "reason": "scheduled recovery"
+        }
+      ]
+    },
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.5"
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1"
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "1.5"
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysRemaining": 2,
+    "creditsUsedToDate": "10",
+    "baselineDailyBurn": "10",
+    "scenarios": [
+      {
+        "key": "low",
+        "endingBalance": "15",
+        "depletionDate": "2026-01-02",
+        "shortfall": "0",
+        "status": "DEPLETION_PROJECTED"
+      },
+      {
+        "key": "base",
+        "endingBalance": "5",
+        "depletionDate": "2026-01-02",
+        "shortfall": "0",
+        "status": "DEPLETION_PROJECTED"
+      },
+      {
+        "key": "high",
+        "endingBalance": "-5",
+        "depletionDate": "2026-01-02",
+        "shortfall": "5",
+        "status": "DEPLETION_PROJECTED"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "DEPLETION_PROJECTED",
+        "scenarioKey": "low",
+        "depletionDate": "2026-01-02",
+        "shortfall": "0"
+      },
+      {
+        "code": "DEPLETION_PROJECTED",
+        "scenarioKey": "base",
+        "depletionDate": "2026-01-02",
+        "shortfall": "0"
+      },
+      {
+        "code": "LOW_BALANCE_PROJECTED",
+        "scenarioKey": "base",
+        "endingBalance": "5",
+        "threshold": "10"
+      },
+      {
+        "code": "DEPLETION_PROJECTED",
+        "scenarioKey": "high",
+        "depletionDate": "2026-01-02",
+        "shortfall": "5"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "@tansohq/credit-burndown-react",
+  "version": "0.1.0",
+  "description": "Provider-neutral React components for credit usage and burndown forecasts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tansohq/credit-estimator.git",
+    "directory": "packages/ui-react"
+  },
+  "homepage": "https://github.com/tansohq/credit-estimator#readme",
+  "bugs": {
+    "url": "https://github.com/tansohq/credit-estimator/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node --input-type=module --eval \"import { copyFileSync } from 'node:fs'; copyFileSync('src/styles.css', 'dist/styles.css')\"",
+    "prepack": "pnpm build",
+    "test": "vitest run --root ../.. packages/ui-react/test",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+  },
+  "dependencies": {
+    "@tansohq/credit-forecast-schema": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/jest-axe": "^3.5.9",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "jest-axe": "^10.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.7"
+  }
+}

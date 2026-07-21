@@ -1,247 +1,237 @@
-# Credit Estimator Agent Guide
+# Credit Forecast Agent Guide
 
 ## Mission
 
-Build a standalone, product-neutral estimator that helps AI product teams:
+Build a product-neutral, customer-facing credit usage and burndown forecaster.
+Companies embed it in their dashboards so customers can understand:
 
-- define what one credit represents;
-- recommend credits consumed by each billable metric;
-- forecast monthly credit demand;
-- test cost, value, and margin assumptions;
-- recommend plan and package allocations;
-- calibrate estimates and propose updated recommendations;
-- export a versioned credit-model specification that can be evaluated locally;
-  and
-- present the same neutral workflow through an optional embeddable UI.
+- usage so far;
+- current burn rate;
+- projected low, base, and high usage;
+- expected balance at period end;
+- likely depletion date;
+- shortfall or low-balance risk; and
+- the inputs and calculations behind every result.
 
-The repository name reflects the project's origin, not a runtime dependency.
-The estimator must be useful without Tanso or any other adopting product.
+This is not a pricing-design tool. It does not calculate provider cost,
+customer value, credit weights, plan recommendations, or runtime credit
+quotes.
 
-## Core architectural principle
+Tanso is one optional adapter, not the architecture. The core and generic UI
+must work without Tanso, credentials, or network access.
 
-Tanso is one optional adapter, not the estimator's architecture.
+## Before changing the repository
 
-The provider-neutral core must support the same model through:
+Read completely:
 
-1. offline library usage;
-2. CLI usage;
-3. a generic hosted API;
-4. JSON and CSV import/export;
-5. a portable deterministic credit-rules engine;
-6. an optional embeddable React UI and reference calculator; and
-7. optional adapters for Tanso and other products.
+1. this file;
+2. every file under `docs/`; and
+3. every fixture under `fixtures/golden-scenarios/`.
 
-The core must not import an adapter package, require credentials, or perform a
-network call. Transport, persistence, credentials, and product-specific
-translation belong outside the core.
+Treat this file as the product boundary, `docs/methodology.md` as the formula
+source of truth, and golden fixtures as executable acceptance criteria. If
+they conflict, stop and document the conflict before changing files.
 
-See [docs/architecture.md](docs/architecture.md),
-[ADR-001](docs/architecture/decisions/ADR-001-provider-neutral-core.md), and
-[ADR-002](docs/architecture/decisions/ADR-002-injected-react-ui.md).
+## Product boundary
 
-## Ownership boundary
+The forecaster consumes a read-only snapshot supplied by an adopting host.
+The neutral input includes:
 
-The estimator owns:
+- `schemaVersion`;
+- `methodologyVersion`;
+- explicit `asOf` date;
+- `period: { startDate, endDate, allocation, lowBalanceThreshold }`;
+- current credit balance at the start of `asOf`;
+- complete daily usage history for every date in
+  `[period.startDate, asOf)`, including zero-use days;
+- explicit `lookbackDays`;
+- explicit low, base, and high burn multipliers;
+- an explicit low-balance threshold; and
+- optional dated future balance deltas.
 
-- provider and total unit-cost calculations;
-- customer-value and EVE modeling;
-- confidence-adjusted value calculations;
-- cost-floor, value-supported, maximum-value, and recommended credit weights;
-- low, base, and high forecasts;
-- plan and package recommendations;
-- calibration analysis and automated recommendation proposals;
-- provider-neutral schemas and calculation traces;
-- versioned, portable published credit models; and
-- the deterministic quote operation:
+Missing forecast inputs are validation errors. Do not silently default them.
 
-      metricKey + quantity + context + modelVersion -> required credits
+The forecaster returns:
 
-Adopting products own:
+- `schemaVersion` and `methodologyVersion` echoed unchanged;
+- baseline daily burn;
+- used-to-date credits;
+- low, base, and high projected burn;
+- projected ending balance and utilization;
+- depletion date, when applicable;
+- projected shortfall;
+- scenario status;
+- daily observed and projected chart points;
+- structured warnings; and
+- ordered calculation traces.
 
-- wallet balances;
+The core owns only deterministic forecast calculation and neutral validation.
+It does not read or mutate live product state.
+
+## Adopting-product boundary
+
+The adopting product owns:
+
+- source-of-truth balances and allocations;
 - credit grants, deductions, reversals, expiration, and rollover;
+- usage events, aggregation, and metric-event persistence;
 - transactions and ledgers;
-- entitlement and hard-limit enforcement;
-- subscription state;
-- payments and Stripe top-ups;
-- runtime metric-event persistence; and
-- selection and storage of the model version effective for a live request.
+- authentication and authorization;
+- subscription and entitlement state;
+- payments, billing, and top-ups;
+- persistence of inputs or results;
+- data fetching and refresh behavior; and
+- customer-facing CTA behavior when risk is detected.
 
-The quote operation calculates required credits. It never checks a balance,
-deducts credits, grants access, records a transaction, or persists an event.
+The host supplies a consistent snapshot. The forecaster does not reconstruct
+the source-of-truth balance from usage history or execute future balance
+deltas. It models supplied deltas only for forecast purposes.
 
-## Dependency rules
+## Explicit exclusions
 
-- `packages/schema` defines neutral contracts, stable keys, versions, and
-  extension conventions.
-- `packages/core` may depend on `packages/schema`; it must not depend on the
-  CLI, API app, or any adapter. Its pure calculation entry point must remain
-  browser-compatible without Node.js polyfills.
-- `packages/rules-engine` may depend on `packages/schema`; it must not depend
-  on an adapter or a hosted estimator service.
-- `packages/ui-react` is an optional controlled presentation layer. It may
-  depend on `packages/schema` and React peer dependencies, but it must not
-  require the core, API app, adapters, authentication, persistence, or a
-  network client. Hosts inject estimation and export behavior.
-- `packages/adapters/tanso` is headless. It must not import React or either UI
-  package.
-- `packages/ui-tanso-react` is an optional product-integration UI. It may
-  depend on `packages/ui-react`, `packages/adapters/tanso`, and neutral
-  schemas; no dependency may flow from those packages back into it.
-- `packages/cli` and `apps/api` are delivery layers. They may call the core,
-  rules engine, and configured adapters.
-- `apps/calculator` is a reference host. It may compose `packages/ui-react`
-  with local core execution or a compatible hosted API and format adapters;
-  those choices must not leak into the generic component contract.
-- Adapter packages may depend on neutral schemas. Adapter dependencies must
-  never flow back into the core or rules engine.
-- Product SDKs, credentials, UUIDs, and network clients are permitted only in
-  the relevant adapter or delivery layer.
+Do not implement:
 
-These rules are architectural constraints, not implementation suggestions.
+- provider or infrastructure cost modeling;
+- customer-value or EVE modeling;
+- credit-weight recommendations;
+- price, revenue, margin, or package calculations;
+- plan-allocation recommendations;
+- runtime quote or rules-engine operations;
+- model publication, approval, rollout, or effective-time governance;
+- wallets, grants, deductions, transactions, or ledgers;
+- entitlement enforcement;
+- billing or Stripe integration;
+- usage-event ingestion or storage;
+- authentication;
+- machine-learning predictions; or
+- product-specific behavior in neutral packages.
 
-## Stable identifiers and extensions
+There is no `modelVersion` in the neutral forecast contract. Forecasts are
+versioned only by `schemaVersion` and `methodologyVersion`.
 
-Neutral schemas use stable external keys such as:
+## Determinism and dates
 
-- `metricKey`;
-- `planKey`;
-- `productKey`; and
-- `segmentKey`.
+- Calculations must be pure, deterministic, and decimal-safe.
+- Identical inputs must produce structurally identical results.
+- Portable JSON encodes decimal quantities as canonical base-10 strings.
+- Count fields such as `lookbackDays` are JSON integers.
+- Never perform credit, usage, balance, rate, or multiplier arithmetic with
+  binary floating-point numbers.
+- All dates are explicit ISO 8601 date-only strings: `YYYY-MM-DD`.
+- Do not call the system clock or generate a current date or timestamp.
+- `asOf` is supplied by the host and is the first projected date.
+- Observed daily usage covers `[period.startDate, asOf)`.
+- Projection covers `[asOf, period.endDate)`.
+- These half-open ranges prevent an observed day from also being projected.
+- Daily history must cover every required observed calendar day. Zero usage is
+  represented explicitly, not inferred from a missing row.
+- `lookbackDays` and all scenario multipliers are required inputs, not hidden
+  constants.
+- Future balance deltas must carry explicit dates and amounts.
+- Preserve ordered calculation traces sufficient to reproduce every result.
+- Return structured validation failures and warnings. Never hide errors by
+  returning null, an empty value, or an invented default.
 
-They must not require Tanso UUIDs or identifiers from any adopting product.
-Product-specific fields belong under a namespaced `extensions` object, for
-example `extensions["com.tanso"]`. Unknown extensions must not change neutral
-calculation semantics. An adapter resolves stable keys to product identifiers.
+## Package boundaries
 
-## Determinism, versions, and publication
+Target packages:
 
-- Every calculation and quote input explicitly supplies `schemaVersion`,
-  `methodologyVersion`, and `modelVersion`. Every result, export, and
-  published model echoes all three unchanged.
-- A draft `modelVersion` identifies the caller's assumption snapshot. It does
-  not imply approval, publication, or effectiveness.
-- Reusing a `modelVersion` for different calculation-relevant input is
-  invalid. Stateless calculations cannot detect historical reuse; delivery
-  and publication layers enforce it. Never cache by `modelVersion` alone.
-- Calculation payloads exclude generated timestamps, random values, and
-  environment-dependent data.
-- A publication envelope may include an explicitly supplied `effectiveAt`
-  timestamp; it is not generated by the calculation engine.
-- Runtime systems must be able to evaluate a published model locally.
-- A live request must not depend on availability of `apps/api` or any hosted
-  estimator service.
-- Automated calibration or recommendation logic produces proposals only.
-- No proposal may silently modify production rules.
-- Publication requires explicit approval, an immutable model version, and an
-  effective timestamp.
-- Once published, the same model version and quote input must produce the same
-  required-credit result.
+- `@tansohq/credit-forecast-schema`: browser-compatible neutral inputs,
+  results, warnings, traces, and validation errors;
+- `@tansohq/credit-forecast-core`: validation orchestration, decimal-safe
+  calculations, warnings, and traces;
+- `@tansohq/credit-burndown-react`: optional controlled React components for
+  embedding the forecast in a customer dashboard;
+- delivery adapters for JSON and CSV snapshots; and
+- optional product adapters, including Tanso.
 
-## MVP
+Dependency rules:
 
-The first MVP validates the methodology through a pure calculation library,
-neutral schemas, golden scenarios, JSON files, and a small CLI. It includes:
+- The core must not import React, an adapter, a product SDK, or a network
+  client.
+- The core must run offline and in modern browsers without Node-only APIs.
+- The React package may depend on the neutral schema package and React peer
+  dependencies. It must not import the core or own authentication,
+  persistence, billing, networking, or CTA effects.
+- Hosts inject snapshot data and handle refreshes, exports, and actions.
+- Tanso-specific identifiers, credentials, copy, and behavior belong only in
+  an optional Tanso adapter.
+- Neutral schemas must not require Tanso UUIDs or product-specific entities.
+- Product-specific metadata belongs under namespaced extensions and must not
+  change neutral forecast semantics.
 
-1. validation of customer, workload, metric, cost, and value assumptions;
-2. cost floors, value-supported weights, feasibility warnings, and traces;
-3. low, base, and high demand and margin scenarios; and
-4. deterministic, versioned, provider-neutral output.
+## MVP sequence
 
-Do not build wallets, ledgers, entitlement logic, billing, a production API,
-an embeddable UI, or product adapters until the methodology and portable
-model contract are validated against the golden scenarios. Architecture
-documentation may define those future boundaries.
+1. Define neutral schemas and deterministic methodology.
+2. Make every golden fixture pass in the pure core.
+3. Build `@tansohq/credit-burndown-react` as the primary customer-facing MVP.
+4. Add JSON and CSV import/export adapters.
+5. Add an optional hosted reference application and product adapters.
+
+Do not duplicate forecast formulas in the UI. The UI presents core results.
+
+The first UI must show:
+
+- current balance and period context;
+- usage-to-date and baseline daily burn;
+- low, base, and high burndown projections;
+- projected depletion date or ending balance;
+- low-balance and shortfall warnings;
+- daily chart points;
+- calculation explanations; and
+- host-configured export or CTA actions.
+
+Use composable, controlled, accessible, responsive React components. Default
+copy and styling must remain product-neutral and themeable.
 
 ## Domain language
 
-- Metric: a billable product or agent action identified by `metricKey`.
-- Metric volume: expected completed metric units in a period.
-- Unit cost: provider and infrastructure cost per completed metric unit.
-- Customer value: confidence-adjusted economic value per metric unit.
-- Credit weight: credits consumed per completed metric unit.
-- Realized price per credit: actual usage revenue divided by available
-  credits, not the advertised list price.
-- Cost floor: minimum credits needed to meet the target gross margin.
-- Value-supported weight: credits justified by target value capture.
-- Maximum value weight: maximum credits permitted by the value guardrail.
-- Plan allocation: credits recommended for inclusion in a plan for a period.
-- Scenario: a named set of explicit workload and cost multipliers.
-- Published model: an immutable, approved, versioned set of credit rules with
-  an effective timestamp.
-- Quote: a deterministic evaluation of required credits with no wallet or
-  entitlement side effects.
+- **Period allocation:** credits made available for the forecast period.
+- **Current balance:** source-of-truth credits available at the start of
+  `asOf`.
+- **Daily usage:** credits consumed on one explicit calendar date.
+- **Used to date:** sum of supplied daily usage in the current period through
+  the end of the day before `asOf`.
+- **Lookback window:** explicit observed days used to calculate baseline burn.
+- **Baseline daily burn:** methodology-defined daily rate calculated from the
+  supplied lookback window.
+- **Scenario multiplier:** explicit factor applied to baseline burn for low,
+  base, or high projection.
+- **Future balance delta:** a dated, forecast-only addition or subtraction
+  supplied by the host.
+- **Depletion date:** first projected date the balance reaches the
+  methodology-defined depleted state.
+- **Shortfall:** credits required to avoid a negative projected ending
+  balance.
+- **Status:** neutral scenario classification based on depletion and the
+  supplied low-balance threshold.
 
-Do not use credits, tokens, usage units, provider cost, customer value,
-balances, or transactions as interchangeable terms.
-
-## Calculation requirements
-
-- Use decimal-safe arithmetic for currency, rates, and credits.
-- Keep formulas deterministic and side-effect free.
-- Require explicit units and periods.
-- Never silently substitute missing financial inputs.
-- Return structured warnings for incomplete or infeasible inputs.
-- Preserve calculation trace data sufficient to explain every recommendation
-  and quote.
-- Treat low, base, and high multipliers as inputs, not hardcoded constants.
-- Keep automated recommendations separate from approved published rules.
-
-The formula source of truth is [docs/methodology.md](docs/methodology.md).
-
-## Integration rules
-
-- No shared database with an adopting product.
-- No direct access to an adopting product's database.
-- No dependency on product-specific entity classes from neutral packages.
-- No credentials required for core calculations or local quotes.
-- No duplicated wallet, ledger, entitlement, subscription, or billing logic.
-- Use versioned neutral JSON contracts at integration boundaries.
-- Put every product translation in its own adapter.
-- Import telemetry as neutral observations; do not make the core fetch it.
-- Resolve cost catalogs outside a calculation and pass an immutable snapshot
-  into the core.
-- Keep estimator formulas out of presentation components. UI hosts call the
-  core or a compatible API through an injected estimator function.
-- UI estimation is explicit-submit by default. Editing an input must not
-  automatically invoke the estimator.
-- Injected estimators receive an `AbortSignal`; the UI must also reject stale
-  completions using a monotonically increasing request sequence.
-- All rejected values pass through the Zod-backed neutral error normalizer.
-  Cancellation is detected from `signal.aborted`, not an exception class.
-- Controlled UI input is immutable. Changes to input or estimator identity,
-  explicit reset, and unmount abort and invalidate in-flight work.
-- The UI renders only host-supplied exporters and normalizes estimation
-  failures to the neutral error contract.
-- Keep Tanso-specific actions, copy, credentials, and identifiers out of the
-  generic UI. Headless Tanso behavior belongs in `packages/adapters/tanso`;
-  React controls belong in `packages/ui-tanso-react`.
-
-The optional Tanso boundary is documented in
-[docs/tanso-integration.md](docs/tanso-integration.md).
+Do not use balance, allocation, usage, burn, utilization, or shortfall as
+interchangeable terms.
 
 ## Quality bar
 
-The golden scenarios in `fixtures/golden-scenarios/` are executable product
-requirements. The engine is not ready until:
+Work is not ready until:
 
-- every fixture passes without network access or credentials;
-- every fixture supplies and asserts `schemaVersion`, `methodologyVersion`,
-  and `modelVersion` in the calculation envelope;
-- golden fixtures cover direct and decomposed unit cost, direct and
-  confidence-adjusted value, direct and driver-based volume, plan allocation,
-  scenario economics, warnings, and calculation traces;
-- identical inputs produce identical outputs;
-- every output carries all three required versions;
-- every recommended weight exposes its guardrails and feasibility status;
-- every quote identifies the applied model and rule;
-- zero-volume and zero-revenue cases avoid invalid arithmetic;
-- ordered scenario inputs produce ordered demand outputs; and
-- neutral schemas require no product-specific identifiers.
+- every golden fixture passes without network access or credentials;
+- every fixture supplies and asserts `schemaVersion` and
+  `methodologyVersion`;
+- golden fixtures cover zero usage, steady burn, changing burn, short
+  lookback, future deltas, low balance, depletion, shortfall, and scenario
+  ordering;
+- all dates are explicit and no result depends on execution time or timezone;
+- repeating decimal results follow the methodology's fixed precision and
+  rounding rule;
+- complete history and missing-day validation are tested;
+- low, base, and high outputs use only supplied multipliers;
+- chart points agree with summary results;
+- every status, warning, and depletion date is traceable to explicit inputs;
+- identical inputs produce identical outputs; and
+- neutral packages require no product credentials or identifiers.
 
 ## Scope discipline
 
-Do not add a feature unless it tests the core hypothesis or is required for a
-portable estimation and quote flow. Prefer explicit files and manual approval
-over premature administration, collaboration, billing, or telemetry systems.
-Adapters and delivery layers must remain replaceable.
+Ship the smallest trustworthy burndown forecaster. Do not preserve pricing
+estimator concepts for compatibility. Do not add adjacent billing, metering,
+pricing, wallet, or publication features. Adapters and hosts remain
+replaceable; the deterministic forecast stays portable.

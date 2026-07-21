@@ -1,0 +1,42 @@
+{
+  "name": "@tansohq/credit-forecast-csv",
+  "version": "0.1.0",
+  "description": "Portable RFC 4180 CSV import and export for credit forecasts",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tansohq/credit-estimator.git",
+    "directory": "packages/adapters/csv"
+  },
+  "homepage": "https://github.com/tansohq/credit-estimator#readme",
+  "bugs": {
+    "url": "https://github.com/tansohq/credit-estimator/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tansohq/credit-forecast-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

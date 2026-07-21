@@ -1,198 +1,234 @@
-# ADR-002: Optional React UI with an injected estimator
+# ADR-002: Result-controlled React burndown UI
 
-**Date:** 2026-07-20
+**Date:** 2026-07-21
 
 **Status:** Accepted
 
 **Deciders:** Project maintainers
-**Review trigger:** A proposed UI feature requires a specific estimator
-transport, product SDK, persistence system, or duplicated calculation formula
+**Review trigger:** A proposed UI feature adds forecast formulas, data fetching,
+authentication, persistence, billing behavior, or a product-specific dependency
 
 ## Context and problem statement
 
-An embeddable calculator can make the estimator easier to adopt, but a UI that
-directly calls one hosted API or imports a product adapter would undermine the
-provider-neutral architecture. The same workflow needs to run entirely in a
-browser, call a compatible hosted API, and embed inside Tanso or another
-product.
+The primary adoption path is an embeddable customer-facing credit burndown UI.
+Companies should be able to place it in their dashboard so customers can see
+current burn rate, projected depletion, remaining credits at period end, scenario
+ranges, and the inputs behind the projection.
 
-The architectural question is how React components obtain estimates and
-exports without owning calculation, transport, authentication, persistence,
-or product integration.
+The embedding host may run the forecast core in the browser, run it on a
+server, or obtain a compatible result through its own API. The component
+package should not know which path produced the result. It should also avoid
+owning product actions such as purchasing credits or changing a plan.
+
+The architectural question is whether the React package should calculate or
+fetch forecasts, or render versioned results controlled by its host.
 
 ## Decision drivers
 
-- The deterministic engine remains the only formula implementation.
-- Browser-local estimation must work without credentials or network access.
-- A compatible hosted API must be substitutable without changing components.
-- Embedding products must retain control of state, authentication, storage,
-  branding, and product-specific actions.
-- The generic package must remain testable without Tanso or an API server.
-- Components should be composable, controlled, accessible, responsive, and
-  themeable.
+- The core remains the only forecast formula implementation.
+- Hosts retain control of data fetching, authentication, storage, and errors.
+- Browser-local and server-produced results use the same components.
+- Tanso and other products can embed the package without product-specific UI
+  leaking into the generic contract.
+- Components must be composable, accessible, responsive, themeable, and safe
+  to import during server rendering.
+- Charts must remain understandable without color, pointer interaction, or a
+  visual display.
+- Host applications control actions and product policy.
 
 ## Considered options
 
-1. **API-bound component:** The UI includes a client for the estimator API and
-   requires its endpoint and authentication model.
-2. **Core-bound component:** The UI imports the calculation core and always
-   executes it in the browser.
-3. **Injected estimator:** The UI accepts a sync-or-async estimator function
-   and a discoverable list of exporters supplied by its host.
-4. **Product-specific UI:** Each adopting product implements a separate
-   calculator against its own models and services.
+1. **API-bound UI:** The package fetches a forecast from a configured endpoint.
+2. **Core-bound UI:** The package imports the forecast core and calculates on
+   every input change.
+3. **Result-controlled UI:** The host supplies neutral `ForecastInput` and
+   `ForecastResult` objects; the package only renders them.
+4. **Product-specific dashboards:** Each adopter builds its own forecast UI.
 
 ## Decision outcome
 
-**Chosen option:** Injected estimator.
+**Chosen option:** Result-controlled UI.
 
-`packages/ui-react` depends on neutral types from `packages/schema` and uses
-React as a peer dependency. It does not require `packages/core`, `apps/api`, a
-format adapter, a product adapter, or a network client. Its host injects:
+Publish the generic package as `@tansohq/credit-burndown-react`. React is a
+peer dependency with initial support for `^18.2.0 || ^19.0.0`, limited to
+majors exercised in CI.
 
-```ts
-type Estimate = (
-  input: EstimatorInput,
-  context: { signal: AbortSignal },
-) => EstimatorResult | Promise<EstimatorResult>;
+The primary composition contract is:
+
+```tsx
+<CreditBurndown.Root input={input} result={result}>
+  <CreditBurndown.Summary />
+  <CreditBurndown.Chart />
+  <CreditBurndown.Scenarios />
+  <CreditBurndown.Warnings />
+  <CreditBurndown.Breakdown />
+</CreditBurndown.Root>
 ```
 
-Estimation failures pass through a Zod-backed neutral error normalizer that
-returns a stable code, message, retryability, and optional field issues.
-Cancellation is detected from `signal.aborted`, not from a platform-specific
-exception. The UI performs estimation only after explicit **Calculate**
-submission and rejects stale completions by a monotonically increasing request
-sequence. Editing while a request is active aborts and invalidates that
-request without starting another one.
+`ForecastInput` and `ForecastResult` are provider-neutral contracts exported
+by `@tansohq/credit-forecast-schema`. The host supplies both objects. It may
+calculate `result` locally:
 
-The host also owns controlled input state and injects zero or more
-discoverable `Exporter` objects. A browser host can pass the pure core
-function. A remote host can pass any API client that honors the neutral
-schema. An adopting product can wrap the same components with its own
-orchestration.
+```ts
+const result = forecast(input);
+```
 
-The package exposes an assembled calculator and compound components for
-assumptions, metrics, scenarios, results, warnings, and traces. Tanso-specific
-publication controls live in `packages/ui-tanso-react`, which consumes the
-headless `packages/adapters/tanso` package, not in the generic calculator.
+It may instead receive the same result from its own backend or a generic
+hosted API. The React package does not invoke the forecast calculation, call an
+endpoint, or coordinate an async request.
 
-`apps/calculator` is a hosted demo and reference implementation. It may
-demonstrate local execution, hosted API execution, and JSON/CSV exports, but
-the UI package does not depend on that app.
+The result is controlled state. New host props replace the rendered snapshot.
+The UI does not mutate `input` or `result`, infer missing values, or recalculate
+any field. If the host is loading, refreshing, or handling an error, it owns
+that lifecycle and decides whether to retain the previous result or render its
+own state around the components.
+
+## Component responsibilities
+
+- `Summary` presents balance, burn rate, projected depletion, and credits
+  remaining at the forecast boundary.
+- `Chart` presents observed usage and projected balance without inventing a
+  historical balance the host did not supply.
+- `Scenarios` compares low, base, and high outcomes.
+- `Warnings` presents structured low-balance, depletion, and data-quality
+  warnings from the result.
+- `Breakdown` explains assumptions and calculation steps already present in
+  the result.
+
+Components may format and arrange result values. They must not derive business
+results that belong in the core.
 
 ## Required constraints
 
-1. No calculation formula is implemented in `packages/ui-react` or
-   `apps/calculator`.
-2. The generic UI has no required endpoint, credentials, authentication,
-   persistence, Stripe, wallet, ledger, or entitlement behavior.
-3. Component inputs and results use versioned provider-neutral schemas and
-   stable keys.
-4. Public input state is controlled and immutable. Each edit supplies a new
-   object; mutation in place is unsupported.
-5. Both synchronous local and asynchronous remote estimators are supported.
-6. Every call receives an `AbortSignal`; the UI rejects results whose request
-   sequence, submitted input reference, or estimator reference is no longer
-   current. Editing invalidates an in-flight call without starting a new one.
-7. Editing never invokes estimation. The default and required first-version
-   interaction is explicit **Calculate** submission.
-8. Every rejection passes through the neutral Zod schema and normalizer;
-   arbitrary values never reach rendering code.
-9. JSON and CSV controls are created only from host-supplied `Exporter`
-   objects; an absent or empty list renders no export actions.
-10. `packages/adapters/tanso` is headless. Tanso React controls are separately
-    installable from `packages/ui-tanso-react`.
-11. CSS custom properties provide the public theming boundary; neutral styles
-    do not assume a host framework.
-12. Semantic markup, keyboard operation, focus management, assistive-technology
-    announcements, non-color status cues, and responsive embedding are release
-    requirements.
-13. UI implementation begins after the core satisfies all golden scenarios.
-14. The pure core entry point used in browsers has no Node-only runtime
-    dependency and needs no Node.js polyfill.
-15. Publish as `@tansohq/credit-calculator-react` with React peers initially
-    `^18.2.0 || ^19.0.0`, limited to majors exercised in CI.
-16. Imports are SSR-safe and do not access `window` or `document` at module
-    scope.
-17. Styles use stable semantic `--credit-calculator-*` custom properties,
-    `credit-calculator-*` class names, low-specificity selectors, and no global
-    reset.
-18. A typed injectable `messages` contract provides an exhaustive
-    first-version key set and neutral English defaults.
-19. A Web Component is deferred until at least two committed non-React
-    adopters cannot reasonably use the React package.
+1. No forecast, burn-rate, depletion, balance, or scenario formula is
+   implemented in the React package.
+2. The package performs no network calls and contains no required endpoint,
+   API client, authentication, persistence, wallet, ledger, entitlement,
+   subscription, Stripe, or billing behavior.
+3. `Root` receives matching provider-neutral `ForecastInput` and
+   `ForecastResult` objects. Their `schemaVersion` and `methodologyVersion`
+   values must be compatible before children render the result. The host
+   replaces input and result atomically.
+4. Input and result props are immutable. Components never mutate caller-owned
+   objects.
+5. The public API includes the compound components shown above and may provide
+   an assembled convenience view built from the same primitives.
+6. `Chart` always exposes equivalent data through an accessible table or text
+   summary. It does not communicate a series, threshold, warning, or scenario
+   through color alone.
+7. Chart values reachable by pointer are also available to keyboard and
+   assistive-technology users. Reduced-motion preferences are respected.
+8. Components use semantic markup, visible focus, non-color status cues, and
+   assistive-technology labels. Automated checks complement keyboard and
+   screen-reader review.
+9. The package is SSR-safe and does not access `window`, `document`, layout, or
+   browser storage at module scope.
+10. The stable styling boundary uses `--credit-burndown-*` CSS custom
+    properties and `credit-burndown-*` class names, low-specificity selectors,
+    and no global reset.
+11. A typed `messages` contract covers all first-version user-visible strings
+    and ships neutral English defaults. Message overrides do not change
+    forecast semantics.
+12. The layout works in narrow dashboard panels and does not assume a full
+    page, application shell, CSS framework, or fixed container width.
+13. Product-specific actions are provided through a typed host action slot.
+    The package ships no built-in top-up, purchase, plan-change, or Tanso
+    action.
+14. Product names, credentials, SDK types, and product UUIDs do not appear in
+    the generic component contract.
+15. The UI can be installed and rendered with all adapter packages absent.
+
+## Host action slot
+
+The host may place an action beside the neutral summary without teaching the
+component package what that action does:
+
+```tsx
+<CreditBurndown.Root
+  input={input}
+  result={result}
+  actions={<ManageCreditsLink href="/billing/credits" />}
+>
+  {/* neutral components */}
+</CreditBurndown.Root>
+```
+
+The slot is presentation composition only. The UI does not invoke purchases,
+top-ups, wallet mutations, or plan changes.
 
 ## Positive consequences
 
-- One component contract supports offline, hosted, and embedded use.
-- Consumers can replace transport or authentication without forking the UI.
-- The UI is testable with a deterministic in-memory estimator.
-- Core and API release concerns remain independent from component concerns.
-- Product branding and actions can be added without contaminating neutral
-  schemas or terminology.
-- A small dependency surface improves portability and limits browser bundle
-  cost.
+- Embedding requires only neutral input and result objects.
+- Hosts can choose local core execution or their own backend without forking
+  components.
+- The component package has no network, authentication, or product SDK
+  dependency.
+- Forecast formulas cannot drift between core and UI.
+- Tanso-specific and other product-specific actions stay outside the generic
+  package.
+- Accessible non-chart representations are part of the contract, not a host
+  afterthought.
+- Small dependency and styling surfaces reduce integration conflicts.
 
 ## Negative consequences and mitigations
 
-- **More host composition:** Consumers must provide estimation and export
-  functions. Mitigation: publish reference local and remote composition
-  examples in `apps/calculator`.
-- **Sync and async lifecycle complexity:** The UI must handle loading, errors,
-  cancellation, and out-of-order results. Mitigation: define neutral errors,
-  pass an abort signal, and test sequence-based stale-result handling.
-- **No built-in persistence:** A generic calculator cannot assume how drafts
-  are stored. Mitigation: controlled state lets hosts add local, server, or
-  product storage without changing the package.
-- **Product actions need separate components:** Integration packages may
-  duplicate some visual composition. Mitigation: reuse neutral primitives and
-  share schema-based props without creating reverse adapter dependencies.
+- **Hosts coordinate calculation:** The package does not provide a built-in
+  request lifecycle. Mitigation: publish local-core and server-result examples
+  in the reference application.
+- **Input and result can become mismatched:** Controlled props may come from
+  different snapshots, and version compatibility alone does not prove they
+  match. Mitigation: hosts replace them atomically; test fixtures always pair a
+  source input with its exact result.
+- **Accessible charts require duplicate representation:** Tables and text add
+  layout work. Mitigation: provide a shared accessible data-table primitive and
+  test it with every chart fixture.
+- **Product actions require composition:** Adopters must supply their own
+  controls. Mitigation: provide one typed action slot without defining action
+  behavior.
 
 ## Why the alternatives were rejected
 
-### API-bound component
+### API-bound UI
 
-It would make offline use impossible, introduce transport and authentication
-policy into the component package, and make the hosted estimator an
-availability dependency.
+It would impose transport, authentication, availability, and customer-data
+policy on every adopter and prevent fully local usage.
 
-### Core-bound component
+### Core-bound UI
 
-It would support offline use but force every consumer to ship the calculation
-engine and make remote execution an awkward special case. Host injection
-allows local core use without making it a package dependency.
+It would force every host to ship the calculation engine and would make
+server-owned calculation an exception. Result control supports both without
+duplicating formulas.
 
-### Product-specific UI
+### Product-specific dashboards
 
-It would fragment validation, terminology, accessibility, and result
-presentation while increasing the risk that products reimplement formulas.
+They would duplicate forecast presentation, accessibility work, and result
+interpretation across adopters.
 
 ## Compliance and verification
 
-- Add package dependency checks when `packages/ui-react` is created.
-- Exercise golden scenario results through an injected local estimator.
-- Use a contract test to prove local and remote estimator functions render
-  equivalent versioned results.
-- Test controlled state, explicit submission, loading and neutral error states,
-  cancellation, and sequence-based stale async rejection after resubmission
-  or editing.
-- Test invalidation on external input replacement, estimator replacement,
-  explicit reset, and unmount, plus normalization of native and arbitrary
-  rejection values.
-- Test that only configured exporters render and receive the matching input
-  and result.
-- Add automated accessibility checks and keyboard-flow tests.
-- Test SSR-safe imports, supported React majors, message overrides, and the
-  documented CSS prefix contract.
-- Verify the calculator runs with Tanso packages absent.
-- Verify the headless Tanso adapter runs with React packages absent.
-- Review this ADR before adding any built-in API, authentication, storage, or
-  product action to the generic UI.
+- Run package dependency checks before each React package release.
+- In repository integration tests, calculate and render every valid golden
+  input. Separately verify the UI package has no core or adapter dependency.
+- Verify components do not calculate values absent from the result.
+- Test atomic replacement of input and result props.
+- Test every chart against its table or text equivalent.
+- Run automated accessibility checks, keyboard flows, and screen-reader
+  review for the assembled reference view.
+- Test SSR-safe import without a DOM and rendering under each supported React
+  major.
+- Test default messages, complete overrides, narrow containers, reduced
+  motion, CSS prefix stability, and host action composition.
+- Verify no top-up or product action renders when the host supplies no action.
+- Verify the package runs with all adapters absent and never invokes the core
+  calculation internally.
+- Review this ADR before adding formulas, data fetching, authentication,
+  persistence, or a built-in product action.
 
 ## Links
 
 - [Architecture overview](../../architecture.md)
 - [Product scope](../../product-scope.md)
-- [ADR-001: Provider-neutral core](ADR-001-provider-neutral-core.md)
+- [ADR-001: Provider-neutral forecast core](ADR-001-provider-neutral-core.md)
 - [Methodology](../../methodology.md)
+- [Optional Tanso adapter boundary](../../tanso-integration.md)
 - [Golden scenarios](../../../fixtures/golden-scenarios/README.md)

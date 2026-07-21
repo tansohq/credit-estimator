@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm build
+      - run: pnpm verify:packages
+
+  react-18:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install React 18 compatibility dependencies
+        run: >-
+          pnpm --filter @tansohq/credit-burndown-react add --save-dev
+          --lockfile=false react@18.2.0 react-dom@18.2.0
+          @types/react@18 @types/react-dom@18
+      - run: pnpm --filter @tansohq/credit-forecast-schema build
+      - run: pnpm --filter @tansohq/credit-burndown-react typecheck
+      - run: pnpm --filter @tansohq/credit-burndown-react test

@@ -2,229 +2,216 @@
 
 ## Purpose
 
-Tanso is one optional adopting product. It is not required by the estimator's
-schemas, core calculations, CLI, hosted API, portable rules engine, or generic
-React calculator.
+Tanso is one optional source of credit and usage data. It is not required by
+the forecast schemas, deterministic core, JSON contracts, or embeddable React
+UI.
 
-When a team chooses Tanso, the responsibilities are:
+The boundary is:
 
-    Estimator: design, forecast, explain, recommend, and quote
-    Tanso adapter: translate stable neutral keys and contracts
-    Tanso: meter, allocate, enforce, transact, persist, and reconcile
+    Tanso: authoritative balances, grants, deductions, usage, and billing state
+    Tanso adapter: translate a read-only Tanso snapshot into neutral input
+    Forecast core: calculate deterministic burndown projections
+    React UI: render a host-supplied neutral forecast result
 
-Removing the Tanso adapter must not affect offline estimation or local quote
-evaluation.
+Removing the Tanso adapter must not affect local forecasting or the generic UI.
 
-## Conditional Tanso capabilities
+## Package and dependency direction
 
-For an integration that adopts Tanso, Tanso may provide:
-
-- credit models and denominations;
-- customer credit pools and balances;
-- grants, deductions, expiration, rollover, and reversals;
-- plan credit allocations;
-- feature-to-credit-model associations;
-- usage events with usage, provider cost, and customer revenue;
-- hard-limit enforcement;
-- ordered pool draw and draw limits;
-- transaction history; and
-- subscription and Stripe billing infrastructure.
-
-These capabilities describe Tanso, not requirements of the estimator.
-
-## Adapter location and dependency direction
-
-Tanso integration is split into a headless package and an optional React
-package:
+The optional headless adapter lives at:
 
     packages/adapters/tanso/
-    packages/ui-tanso-react/
 
-`packages/adapters/tanso` owns mapping, validation, publication, telemetry
-translation, and Tanso-specific clients. It must not depend on React or either
-UI package. `packages/ui-tanso-react` owns only optional review, confirmation,
-and publication controls and may depend on the headless adapter and generic
-React calculator. Neutral packages must never import either Tanso package, a
-Tanso SDK, Tanso Java entity class, credential, or identifier.
+Permitted dependency direction:
 
-The permitted dependency direction is:
+    Tanso host -> Tanso adapter -> neutral forecast contract
+    Tanso host -> forecast core
+    Tanso host -> React UI
 
-    Tanso adapter -> neutral schema / adapter contracts
-    Tanso React UI -> Tanso adapter / generic React UI / neutral schema
+Forbidden dependency direction:
 
-The reverse dependency is forbidden.
+    forecast core / React UI -> Tanso adapter or Tanso SDK
 
-## Optional Tanso React UI
+The adapter may accept Tanso-specific source types at its outer boundary. It
+returns only provider-neutral forecast input. The core and generic UI never
+import the adapter, a Tanso SDK, a Tanso Java entity, a credential type, or a
+Tanso identifier.
 
-The generic calculator remains useful when both Tanso packages are absent.
-Actions such as **Publish weights to Tanso** live only in
-`packages/ui-tanso-react`. They may wrap the neutral calculator or compose
-beside it, receive the current approved model, and invoke a configured
-headless Tanso publisher. They do not alter the calculator's input,
-estimation, or export contracts.
+## Adapter responsibility
 
-Tanso UI components may render capability checks, stable-key mapping status,
-confirmation, and publication receipts. The embedding host owns credential
-acquisition and storage and injects configured adapter operations. The UI must
-not add wallet creation, top-up, Stripe configuration, or runtime entitlement
-behavior to the estimator. Product-specific copy and identifiers remain
-inside the Tanso UI package and namespaced extensions.
+The headless adapter maps an already-fetched Tanso snapshot into
+`ForecastInput`. The output supplies the same required fields as direct neutral
+input:
 
-## Neutral identifiers
+- `asOf`, the first projected date;
+- `period: { startDate, endDate, allocation, lowBalanceThreshold }`;
+- current balance at the start of `asOf`, taken from Tanso's authoritative
+  balance;
+- complete daily usage history for `[period.startDate, asOf)`, including
+  explicit zero-use days;
+- explicit `lookbackDays`;
+- explicit low, base, and high burn multipliers;
+- explicit dated future balance deltas, when supplied by the host.
 
-Portable models use stable keys:
+The source snapshot may include Tanso grants, deductions, reversals,
+expiration, rollover, and usage records. The adapter maps usage deductions to
+neutral daily usage only when the source meaning is explicit. It may map
+scheduled grants or expirations to future balance deltas. It never derives the
+current source-of-truth balance by replaying those records.
 
-- `metricKey`;
-- `planKey`;
-- `productKey`; and
-- `segmentKey`.
+The adapter may:
 
-They do not contain required Tanso UUIDs. The Tanso adapter owns key
-resolution and may maintain its own mapping to Tanso resources.
+- validate that required source fields are present;
+- translate Tanso units and field names into neutral forecast fields;
+- aggregate source records only where the neutral methodology defines the
+  aggregation;
+- reject ambiguous non-usage deductions instead of treating them as usage;
+- map Tanso resources to stable host-defined keys;
+- preserve display-only Tanso metadata in `extensions["com.tanso"]`; and
+- return structured mapping errors for incomplete or incompatible snapshots.
 
-Optional Tanso metadata must be isolated under a namespace such as:
+The adapter must not:
 
-    {
-      "extensions": {
-        "com.tanso": {
-          "creditModelRef": "adapter-managed-reference"
-        }
-      }
-    }
+- fetch data or acquire credentials;
+- call Tanso from the forecast core or React UI;
+- change Tanso balances, grants, deductions, or usage records;
+- create a wallet, transaction, subscription, payment, or top-up;
+- persist a forecast or runtime metric event;
+- change product configuration;
+- infer missing forecast or usage inputs silently;
+- implement forecast formulas that belong in the core; or
+- make Tanso availability a dependency after the host has assembled a local
+  snapshot.
 
-Neutral calculations must ignore unknown extensions. A field that changes
-credit arithmetic belongs in the neutral schema, not only in an extension.
+The embedding host owns authentication, Tanso API calls, retries, caching,
+refresh behavior, and error presentation. A separately configured host client
+may fetch the source snapshot, but it is not part of the neutral forecast core
+or generic React package.
 
-## Existing integration gap
+## Neutral contract
 
-Tanso currently deducts credits using a one-to-one relationship between event
-usage units and credit units. It does not yet expose a declarative
-metric-weight or conversion-rule table.
-
-The estimator can recommend and publish variable weights, but direct Tanso
-enforcement requires a compatible Tanso capability. A temporary integration
-could submit normalized usage units, but normalization must remain explicit
-and versioned; it must not become hidden estimator behavior.
-
-Purchased credit grants and self-service top-ups remain runtime product and
-billing concerns. They are not implemented by the estimator.
-
-## Integration principles
-
-- The estimator and Tanso do not share a database.
-- The estimator never writes directly to a Tanso database.
-- Core calculations and quotes require no Tanso credentials.
-- The core and rules engine make no network calls.
-- Tanso translation occurs only in the optional adapter.
-- The Tanso adapter is headless; optional React controls are isolated in
-  `packages/ui-tanso-react`.
-- The estimator does not duplicate Tanso wallets, ledgers, entitlements,
-  subscriptions, or billing.
-- Tanso is authoritative for Tanso-managed runtime state and transactions.
-- The published estimator model is authoritative for the recommendation and
-  rule version it contains.
-- A Tanso-backed live request evaluates the published model locally or through
-  a runtime controlled by the adopting product; it does not call the hosted
-  estimator API.
-
-## Neutral published-model contract
-
-A portable published model contains at least:
+The adapter output is the same `ForecastInput` accepted from any other source.
+It includes:
 
 - `schemaVersion`;
 - `methodologyVersion`;
-- `modelVersion`;
-- currency and denomination;
-- global economic assumptions;
-- stable metric keys and credits per unit;
-- stable plan keys and recommended allocations;
-- deterministic quote rules;
-- calculation trace summaries;
-- warnings and confidence;
-- approval metadata; and
-- an explicit `effectiveAt` timestamp.
+- ISO 8601 date-only period and observation values (`YYYY-MM-DD`);
+- the explicit balance and usage snapshot required by the methodology;
+- explicit low, base, and high scenario assumptions; and
+- optional namespaced extensions that do not change neutral calculations.
 
-The calculation payload is deterministic and contains no generated timestamp.
-Approval and `effectiveAt` belong to the publication envelope.
+Portable JSON encodes decimal quantities as canonical base-10 strings. Count
+fields such as `lookbackDays` remain JSON integers. The adapter must not emit
+binary floating-point values for usage, balances, deltas, rates, or
+multipliers.
 
-Illustrative neutral model:
+The resulting `ForecastResult` echoes `schemaVersion` and
+`methodologyVersion`. It contains no generated timestamp. If a Tanso host
+wants to show when it fetched the source data, that retrieval time stays in
+host presentation state outside the deterministic payload.
+
+Neutral schemas require no Tanso UUID. A host may maintain a lookup from its
+stable keys to Tanso resources. Tanso identifiers needed for display or
+diagnostics may remain outside the neutral payload or appear under the Tanso
+extension namespace:
 
 ```json
 {
-  "schemaVersion": "1.0",
-  "methodologyVersion": "1.0",
-  "modelVersion": "2026-07-20.1",
-  "currency": "USD",
-  "denomination": "AI_CREDITS",
-  "assumptions": {
-    "realizedPricePerCredit": 0.01,
-    "targetGrossMargin": 0.70,
-    "targetValueCapture": 0.05,
-    "maximumValueCapture": 0.10
-  },
-  "metricRules": [
-    {
-      "metricKey": "agent.deep_research",
-      "creditsPerUnit": 20,
-      "estimatedUnitCost": 0.02,
-      "confidenceAdjustedValue": 4.00,
-      "expectedGrossMargin": 0.90,
-      "status": "FEASIBLE"
+  "extensions": {
+    "com.tanso": {
+      "sourceRef": "adapter-managed-reference"
     }
-  ],
-  "planRecommendations": [
-    {
-      "planKey": "pro",
-      "recommendedMonthlyCredits": 5000
-    }
-  ]
+  }
 }
 ```
 
-No field in this model requires Tanso.
+The core ignores unknown extensions. Any value that changes a forecast must
+be represented by a documented neutral field.
 
-## Optional Tanso publication flow
+## Data flow
 
-1. The estimator validates a model and produces an immutable recommendation.
-2. Automated analysis may propose changes, but it does not activate them.
-3. An authorized reviewer explicitly approves a specific `modelVersion` and
-   `effectiveAt` value.
-4. The Tanso adapter resolves stable keys to Tanso resources.
-5. The adapter publishes with an idempotency key and returns a receipt.
-6. Tanso stores or activates the translated configuration at the approved
-   effective time.
-7. The adopting runtime evaluates that version locally and uses Tanso for
-   wallet, entitlement, and transaction effects.
-8. Tanso telemetry may later be exported through the neutral telemetry-import
-   adapter for calibration proposals.
+```text
+Tanso APIs or local Tanso state
+        |
+        | host fetches and authorizes
+        v
+Read-only Tanso snapshot
+        |
+        | packages/adapters/tanso maps
+        v
+Neutral ForecastInput
+        |
+        | packages/core forecasts locally
+        v
+Neutral ForecastResult
+        |
+        | host passes controlled props
+        v
+@tansohq/credit-burndown-react
+```
 
-If Tanso is unavailable, offline estimation and local quoting continue to
-work. Publication can retry without changing the approved model payload.
+The host can perform all steps in its backend, in its frontend when safe, or
+across both. The neutral contracts remain the boundary.
 
-## Adapter-specific responsibilities
+## Tanso authority
 
-The Tanso adapter may:
+Tanso remains authoritative for Tanso-managed runtime state:
 
-- map stable keys to Tanso identifiers;
-- translate neutral model rules into supported Tanso resources;
-- validate feature compatibility before publication;
-- publish an approved model idempotently;
-- return product-specific publication receipts under `extensions["com.tanso"]`;
-  and
-- translate Tanso telemetry into neutral observations.
+- current balances and credit pools;
+- grant and deduction history;
+- wallet ordering and expiration behavior;
+- metered usage records;
+- subscription state;
+- billing and payments; and
+- top-up completion.
 
-It must not:
+The forecast is a projection from a supplied snapshot. It does not reserve
+credits, guarantee future usage, alter entitlement decisions, reconcile the
+ledger, or override Tanso state.
 
-- change credit weights to fit product limitations without a warning and a
-  new approval;
-- make the neutral core import Tanso types;
-- require Tanso identifiers in portable fixtures;
-- publish an unapproved recommendation;
-- choose an effective timestamp implicitly; or
-- put a live request on the hosted estimator API's availability path.
+If the forecast and current Tanso state differ, the host refreshes the source
+snapshot and recalculates. The forecast result never writes corrections back
+to Tanso.
 
-See [architecture.md](architecture.md) for the generic adapter contracts and
+## Generic UI integration
+
+Tanso embeds the same result-controlled React components as any other adopter:
+
+```tsx
+<CreditBurndown.Root input={input} result={result}>
+  <CreditBurndown.Summary />
+  <CreditBurndown.Chart />
+  <CreditBurndown.Scenarios />
+  <CreditBurndown.Warnings />
+  <CreditBurndown.Breakdown />
+</CreditBurndown.Root>
+```
+
+The generic UI has no Tanso behavior. Tanso may supply a product-specific
+link or control through the host action slot, but the package provides no
+built-in top-up, wallet, billing, or plan-change action. Tanso controls own
+their authentication, side effects, confirmation, and error handling outside
+the neutral component package.
+
+## Integration verification
+
+- Run adapter mapping tests from recorded or synthetic Tanso snapshots without
+  network access.
+- Assert neutral output requires no Tanso UUID.
+- Assert adapter output validates against the same `ForecastInput` schema used
+  by non-Tanso hosts.
+- Run the same golden forecast through direct neutral input and mapped Tanso
+  input and compare results.
+- Verify source records and caller-owned objects are not mutated.
+- Verify mapping failures are structured and do not silently drop
+  calculation-relevant data.
+- Verify the core and React packages install and run with the Tanso adapter
+  absent.
+- Verify the adapter package imports neither React nor the UI package.
+- Verify no integration path writes balances, creates top-ups, or changes
+  product configuration.
+
+See [architecture.md](architecture.md) for package boundaries,
 [ADR-001](architecture/decisions/ADR-001-provider-neutral-core.md) for the
-provider-neutral decision. See
-[ADR-002](architecture/decisions/ADR-002-injected-react-ui.md) for the generic
-UI injection boundary.
+forecast-core decision, and
+[ADR-002](architecture/decisions/ADR-002-injected-react-ui.md) for the React UI
+boundary.

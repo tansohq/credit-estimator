@@ -1,922 +1,598 @@
-# Credit Estimator Architecture
+# Credit Burndown Forecaster Architecture
 
-## Status and intent
+## Status
 
-This document defines the target architecture and dependency boundaries. It
-does not imply that every package or application is implemented in the first
-MVP.
+This document defines the target architecture and implemented primary MVP.
+Schema, core, React UI, and JSON/CSV adapters exist. The demo and
+product-specific adapters remain deferred.
 
-The governing decision is
-[ADR-001: Provider-neutral core](architecture/decisions/ADR-001-provider-neutral-core.md).
-The optional UI boundary is defined by
-[ADR-002: Injected React UI](architecture/decisions/ADR-002-injected-react-ui.md).
-The calculation formulas remain defined by [methodology.md](methodology.md).
+The product is an embeddable, customer-facing credit usage forecaster. A SaaS
+company supplies a read-only account snapshot. The estimator calculates
+low/base/high burndown projections. A neutral React package renders those
+results inside the company's dashboard.
 
-## Architectural principles
+This is not a pricing-design system. It does not recommend credit weights,
+packages, margins, prices, or runtime billing rules.
 
-1. Tanso is one optional adapter, not the estimator's architecture.
-2. Neutral calculations and local quotes are deterministic and side-effect
-   free.
-3. The core and rules engine require no credentials, persistence, or network.
-4. Delivery mechanisms wrap the same contracts; they do not redefine them.
-5. Runtime systems can evaluate a published model locally.
-6. Stable external keys identify business concepts in portable models.
-7. Product-specific data is isolated in namespaced extensions or adapters.
-8. Automated recommendations are proposals until explicitly approved and
-   assigned an effective timestamp.
-9. Adopting products retain all wallet, ledger, entitlement, billing, and
-   runtime-event responsibilities.
-10. User interfaces receive estimation behavior through dependency injection;
-    they do not duplicate formulas or choose a required backend.
+Related documents:
+
+- [Product scope](product-scope.md)
+- [Forecast methodology](methodology.md)
+- [Optional Tanso integration](tanso-integration.md)
+- [ADR-001: Provider-neutral forecast core](architecture/decisions/ADR-001-provider-neutral-core.md)
+- [ADR-002: Result-controlled React UI](architecture/decisions/ADR-002-injected-react-ui.md)
+
+## Principles
+
+1. The adopting product is the source of truth.
+2. The estimator receives an immutable snapshot and returns an immutable
+   forecast.
+3. The core is deterministic, offline, decimal-safe, and side-effect free.
+4. The core never fetches, stores, grants, deducts, or bills credits.
+5. The UI renders neutral input and core output. It contains no forecast
+   formulas.
+6. Tanso is one optional adapter, not the architecture.
+7. Identical inputs produce structurally identical outputs.
+8. Dates and versions come from the host. The system clock is not an input.
+
+## Ownership
+
+| Capability | Estimator | Adopting product |
+|---|---:|---:|
+| Validate a neutral forecast snapshot | Owns | Supplies snapshot |
+| Calculate observed usage and baseline burn | Owns | Supplies daily usage |
+| Calculate low/base/high projections | Owns | Chooses explicit multipliers |
+| Calculate ending balance, utilization, depletion, and shortfall | Owns | Decides customer action |
+| Produce warnings and calculation traces | Owns | Presents or records them |
+| Render a neutral embeddable burndown UI | Owns | Composes and themes it |
+| Source-of-truth balance and allocation | Reads snapshot | Owns |
+| Usage-event collection and daily aggregation | Does not own | Owns |
+| Wallet grants, deductions, reversals, rollover, and expiration | Does not own | Owns |
+| Authentication, authorization, storage, and refresh | Does not own | Owns |
+| Subscription, entitlement, payments, and top-ups | Does not own | Owns |
+| CTA behavior after a warning | Exposes slot only | Owns |
+
+The estimator must never attempt to reconcile the supplied balance against
+the supplied usage. A host may have rollover, adjustments, refunds, or other
+wallet behavior that is intentionally outside the neutral contract.
 
 ## Target repository structure
 
 ```text
-tanso-oss-credit-estimator/
+credit-estimator/
 ├── packages/
-│   ├── core/
 │   ├── schema/
-│   ├── rules-engine/
-│   ├── cli/
+│   ├── core/
 │   ├── ui-react/
-│   ├── ui-tanso-react/
 │   └── adapters/
 │       ├── json/
 │       ├── csv/
-│       ├── webhook/
 │       └── tanso/
 ├── apps/
-│   ├── api/
-│   └── calculator/
+│   └── demo/
 ├── docs/
 └── fixtures/
 ```
 
-The structure is a target. Create packages only when their behavior is needed
-and validated; do not build empty framework layers merely to match the tree.
+Create packages only when implementation reaches them. Empty packages do not
+prove the architecture.
 
 ## Package responsibilities
 
-| Package | Owns | Must not own |
-|---|---|---|
-| `packages/schema` | Versioned neutral inputs, outputs, estimate errors, published models, quote contracts, stable-key and extension conventions | Product SDKs, I/O, persistence, calculations |
-| `packages/core` | Cost, EVE/value, credit weights, scenarios, plan recommendations, calibration analysis, recommendation proposals, traces | Adapters, HTTP, filesystem, credentials, wallets, ledgers |
-| `packages/rules-engine` | Portable local evaluation of an immutable published model and deterministic quote traces | Model authoring, publication, balances, authorization, event persistence |
-| `packages/cli` | Command parsing, file I/O, human-readable failures, orchestration of core and codecs | Alternate formulas, product-specific behavior |
-| `packages/ui-react` | Controlled, composable, accessible React components for editing neutral inputs and presenting results, warnings, and traces | Formulas, required transport, authentication, persistence, product-specific actions |
-| `packages/ui-tanso-react` | Optional React controls for reviewing and publishing an approved model through the headless Tanso adapter | Neutral calculator behavior, calculations, adapter transport, wallets, billing |
-| `packages/adapters/json` | Lossless neutral JSON import/export | Business calculations |
-| `packages/adapters/csv` | Documented CSV projections and neutral normalization | Hidden defaults or lossy round trips without warnings |
-| `packages/adapters/webhook` | Generic outbound publication and telemetry transport | Core policy or product-specific field leakage |
-| `packages/adapters/tanso` | Headless stable-key mapping and optional Tanso publication/telemetry translation | React, UI behavior, neutral formulas, required core dependency, wallet duplication |
-| `apps/api` | Optional versioned HTTP transport, validation, authentication, rate limiting, adapter orchestration | Runtime authority, a distinct domain model, live-request dependency |
-| `apps/calculator` | Hosted demo and reference composition of the React UI with local or remote estimation and export adapters | New formulas, a required production service, generic package policy |
+| Package | Proposed package name | Owns | Must not own |
+|---|---|---|---|
+| `packages/schema` | `@tansohq/credit-forecast-schema` | Versioned neutral input, result, warning, trace, and validation-error contracts | Formulas, I/O, React, product identifiers |
+| `packages/core` | `@tansohq/credit-forecast-core` | Validation orchestration, decimal-safe forecast calculations, warnings, traces | Network, filesystem, credentials, React, adapters, product state |
+| `packages/ui-react` | `@tansohq/credit-burndown-react` | Controlled, composable, accessible forecast presentation | Fetching, estimation, authentication, persistence, billing, formulas |
+| `packages/adapters/json` | `@tansohq/credit-forecast-json` | Lossless neutral snapshot/result serialization | Forecast policy |
+| `packages/adapters/csv` | `@tansohq/credit-forecast-csv` | Documented tabular import/export and mapping warnings | Hidden defaults, formulas |
+| `packages/adapters/tanso` | To decide | Optional Tanso-to-neutral snapshot mapping | React, core policy, required credentials in neutral packages |
+| `apps/demo` | Not published | Reference local calculation and widget composition | New domain behavior |
 
 ## Dependency direction
 
 ```mermaid
 flowchart LR
-  Schema["packages/schema"]
-  Core["packages/core"]
-  Rules["packages/rules-engine"]
-  CLI["packages/cli"]
-  UI["packages/ui-react"]
-  TansoUI["packages/ui-tanso-react"]
-  API["apps/api"]
-  Calculator["apps/calculator"]
-  JSON["adapters/json"]
-  CSV["adapters/csv"]
-  Webhook["adapters/webhook"]
-  Tanso["adapters/tanso"]
+  Schema["schema"]
+  Core["core"]
+  UI["ui-react"]
+  JSON["adapter: json"]
+  CSV["adapter: csv"]
+  Tanso["adapter: tanso"]
+  Demo["demo app"]
+  Host["adopting product"]
 
   Core --> Schema
-  Rules --> Schema
-  CLI --> Core
-  CLI --> Rules
-  CLI --> JSON
-  CLI --> CSV
   UI --> Schema
-  API --> Core
-  API --> Rules
-  API --> Webhook
-  API --> Tanso
   JSON --> Schema
   CSV --> Schema
-  Webhook --> Schema
   Tanso --> Schema
-  TansoUI --> UI
-  TansoUI --> Tanso
-  TansoUI --> Schema
-  Calculator --> UI
-  Calculator --> Core
-  Calculator --> JSON
-  Calculator --> CSV
+  Demo --> Core
+  Demo --> UI
+  Host --> Core
+  Host --> UI
+  Host --> Tanso
 ```
 
 Forbidden dependencies:
 
+- `core -> ui-react`;
 - `core -> adapters/*`;
-- `rules-engine -> adapters/*`;
-- `schema -> core`, delivery layers, or adapters;
-- `ui-react -> core`, `apps/*`, or `adapters/*`;
-- `adapters/tanso -> ui-react`, `ui-tanso-react`, or React;
-- a neutral package -> a Tanso SDK or product entity; and
-- a live adopting-product request -> `apps/api` for quote availability.
+- `core -> product SDK`;
+- `schema -> core`, React, adapters, or I/O;
+- `ui-react -> core`, network client, product SDK, or adapter;
+- `adapters/tanso -> ui-react`; and
+- any neutral package -> Tanso credentials or UUIDs.
 
-Static dependency checks should eventually enforce these rules.
+The deliberate `ui-react -> schema` dependency makes the widget a renderer of
+an already calculated result. A host may run the core in the browser, on its
+server, or in another compatible service without changing the UI contract.
 
-## Neutral model identity
+## Neutral forecast contract
 
-Every estimator input and result, quote input and result, exported model, and
-publication request contains:
+### Versions
 
-- `schemaVersion`: contract shape and compatibility;
-- `methodologyVersion`: formula and rounding semantics; and
-- `modelVersion`: immutable commercial assumptions and rules.
+Every input and result contains:
 
-A draft estimate uses a caller-assigned `modelVersion` as a revision label.
-That version does not imply approval, publication, or an effective date. A
-caller must assign a new `modelVersion` before calculating any payload whose
-calculation-relevant input differs from a payload previously calculated under
-that version.
+- `schemaVersion`: neutral payload shape and compatibility;
+- `methodologyVersion`: formula, date, precision, and rounding semantics.
 
-The stateless core validates that versions are present and echoes them; it
-cannot detect historical version reuse. Delivery layers and model registries
-enforce the no-reuse invariant when they retain history. Caches must key on the
-canonical complete input or a deterministic digest, never on `modelVersion`
-alone. Published versions remain immutable and cannot be repointed to a new
-payload. The first MVP does not cache estimates; caching remains disabled until
-canonical serialization or digest semantics are specified and tested.
+There is no `modelVersion`. Scenario multipliers are explicit input data, not
+a published pricing model.
 
-Neutral identity fields use stable keys:
+### Decimal representation
 
-- `metricKey` for a billable action;
-- `planKey` for a commercial package;
-- `productKey` for a product or product surface; and
-- `segmentKey` for a customer/workload cohort.
+Portable JSON uses canonical base-10 strings for credit amounts,
+multipliers, rates, utilization, and trace values. Count fields such as
+`lookbackDays` use JSON integers.
 
-Portable schemas do not require product UUIDs. Adapters resolve keys to local
-identifiers.
+Examples: `"0"`, `"1250"`, `"1.15"`, `"0.833333"`.
+
+The schema rejects exponent notation, non-finite values, leading plus signs,
+more than 12 fractional digits, and ambiguous formatting. Every named decimal
+result uses the methodology's 12-place round-half-up rule. No calculation uses
+binary floating-point arithmetic.
+
+### Dates
+
+All dates are explicit ISO date-only values (`YYYY-MM-DD`) with calendar-day
+semantics:
+
+- period: `[period.startDate, period.endDate)`;
+- observed usage: `[period.startDate, asOf)`;
+- projection: `[asOf, period.endDate)`.
+
+`asOf` is the first projected date. The host supplies it. The core never reads
+the system clock or timezone.
+
+### Conceptual input
+
+```ts
+interface ForecastInput {
+  schemaVersion: string;
+  methodologyVersion: string;
+  asOf: ISODate;
+  period: {
+    startDate: ISODate;
+    endDate: ISODate;
+    allocation: DecimalString;
+    lowBalanceThreshold: DecimalString;
+  };
+  lookbackDays: number;
+  dailyUsage: readonly {
+    date: ISODate;
+    creditsUsed: DecimalString;
+  }[];
+  balance: {
+    current: DecimalString;
+    schedule: readonly {
+      date: ISODate;
+      creditDelta: DecimalString;
+      reason?: string;
+    }[];
+  };
+  scenarios: readonly [
+    { key: "low"; burnMultiplier: DecimalString },
+    { key: "base"; burnMultiplier: "1" },
+    { key: "high"; burnMultiplier: DecimalString },
+  ];
+  extensions?: NamespacedExtensions;
+}
+```
+
+Validation requires:
+
+- `period.startDate < asOf < period.endDate`;
+- one daily usage row for every observed date, including zero-use days;
+- ordered, unique daily usage dates;
+- `lookbackDays` greater than zero and no greater than observed-day count;
+- non-negative usage and low-balance threshold, positive allocation, and a
+  valid signed current balance;
+- exactly `low`, `base`, and `high` scenarios;
+- base multiplier exactly `"1"` and `low < base < high`;
+- scheduled deltas only inside the projected range; and
+- scheduled deltas ordered by date, with multiple rows on one date summed
+  before that day's burn.
+
+Missing values fail validation. The core does not silently invent financial
+or forecast inputs.
+
+### Conceptual result
+
+```ts
+interface ForecastResult {
+  schemaVersion: string;
+  methodologyVersion: string;
+  asOf: ISODate;
+  daysRemaining: number;
+  creditsUsedToDate: DecimalString;
+  baselineDailyBurn: DecimalString;
+  observedPoints: readonly {
+    date: ISODate;
+    creditsUsed: DecimalString;
+    cumulativeCreditsUsed: DecimalString;
+  }[];
+  scenarios: readonly ScenarioForecast[];
+  warnings: readonly ForecastWarning[];
+  calculationTrace: CalculationTrace;
+}
+
+interface ScenarioForecast {
+  key: "low" | "base" | "high";
+  dailyBurn: DecimalString;
+  projectedCreditsUsed: DecimalString;
+  projectedPeriodConsumption: DecimalString;
+  utilization: DecimalString;
+  endingBalance: DecimalString;
+  shortfall: DecimalString;
+  depletionDate: ISODate | null;
+  status: "ON_TRACK" | "LOW_BALANCE_PROJECTED" | "DEPLETION_PROJECTED";
+  points: readonly {
+    date: ISODate;
+    startBalance: DecimalString;
+    balanceDelta: DecimalString;
+    creditsUsed: DecimalString;
+    endingBalance: DecimalString;
+  }[];
+}
+```
+
+The schema may add explicit fields through a new `schemaVersion`. It must not
+hide values required to reproduce the summary from chart points.
+
+### Warnings
+
+Warnings are structured and stable:
+
+```ts
+type ForecastWarning =
+  | {
+      code: "LOW_BALANCE_PROJECTED";
+      scenarioKey: "low" | "base" | "high";
+      endingBalance: DecimalString;
+      threshold: DecimalString;
+    }
+  | {
+      code: "DEPLETION_PROJECTED";
+      scenarioKey: "low" | "base" | "high";
+      depletionDate: ISODate;
+      shortfall: DecimalString;
+    };
+```
+
+Warnings explain valid forecasts. Invalid input produces structured
+validation errors and no forecast.
+
+### Calculation traces
+
+Trace steps are ordered data, not executable expressions:
+
+```ts
+type TraceValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly TraceValue[]
+  | { readonly [key: string]: TraceValue };
+
+interface CalculationTrace {
+  sourceInputs: readonly {
+    path: string;
+    value: TraceValue;
+  }[];
+  steps: readonly CalculationStep[];
+}
+
+interface CalculationStep {
+  key: string;
+  formula: string;
+  operands: Readonly<Record<string, TraceValue>>;
+  result: TraceValue;
+}
+```
+
+Stable keys identify methodology steps. Human-readable formulas aid review.
+Consumers must not re-evaluate the formula string.
+
+## Deterministic calculation flow
+
+The exact formulas and rounding rules live in
+[methodology.md](methodology.md). The dependency flow is:
+
+1. Validate versions, decimal strings, date ranges, complete history,
+   scenarios, and scheduled deltas.
+2. Sum all observed daily usage into `creditsUsedToDate`.
+3. Sum the final `lookbackDays` observed buckets and divide by
+   `lookbackDays` to obtain `baselineDailyBurn`.
+4. Multiply baseline burn by each explicit scenario multiplier.
+5. For every projected date, apply that date's scheduled credit delta before
+   subtracting scenario burn.
+6. Derive projected use, projected period consumption, allocation
+   utilization, ending balance, first depletion date, shortfall, and status.
+7. Emit observed points, projected points, warnings, and ordered traces from
+   the same calculated values.
+
+The core does not stop calculation when balance reaches zero. Negative final
+balances make shortfall visible. The first date with an ending balance at or
+below zero is the depletion date. A later scheduled addition does not erase
+the earlier depletion date, warning, or `DEPLETION_PROJECTED` status.
+
+## Host integration flows
+
+### Local browser calculation
+
+```mermaid
+flowchart LR
+  Product["Product data"] --> Host["Host snapshot mapper"]
+  Host --> Core["forecast core in browser"]
+  Core --> Result["deterministic result"]
+  Result --> UI["burndown React UI"]
+  UI --> Customer["customer dashboard"]
+```
+
+This is the default adoption path. It needs no estimator service.
+
+### Host-side calculation
+
+```mermaid
+flowchart LR
+  Product["Product data"] --> HostAPI["Host backend"]
+  HostAPI --> Core["forecast core"]
+  Core --> HostAPI
+  HostAPI --> ProductUI["Host frontend"]
+  ProductUI --> UI["burndown React UI"]
+```
+
+The host owns transport authentication, cancellation, retries, caching, and
+freshness. HTTP metadata and timestamps stay outside the deterministic result.
+
+### Optional Tanso mapping
+
+```mermaid
+flowchart LR
+  Tanso["Tanso account snapshot"] --> Adapter["optional Tanso adapter"]
+  Adapter --> Neutral["neutral ForecastInput"]
+  Neutral --> Core["forecast core"]
+  Core --> Result["ForecastResult"]
+  Result --> Host["Tanso or another host UI"]
+```
+
+Removing the Tanso adapter must not change schema, core, fixture, JSON/CSV, or
+React package behavior.
+
+## React UI contract
+
+The generic widget receives a calculated result. It does not receive an API
+client or an injected estimator function.
+
+```tsx
+const result = forecastCreditUsage(input);
+
+<CreditBurndown.Root
+  input={input}
+  result={result}
+  selectedScenario={selectedScenario}
+  onSelectedScenarioChange={setSelectedScenario}
+  messages={messages}
+>
+  <CreditBurndown.Summary />
+  <CreditBurndown.Chart />
+  <CreditBurndown.Scenarios />
+  <CreditBurndown.Warnings />
+  <CreditBurndown.Breakdown />
+  <CreditBurndown.Actions>{hostActions}</CreditBurndown.Actions>
+</CreditBurndown.Root>
+```
+
+Result control removes networking, stale-request, cancellation, and error
+normalization from the component library. A remote host can still calculate
+elsewhere and pass the same `ForecastResult`.
+
+### Component responsibilities
+
+- `Root`: context, selected-scenario control, consistency checks, layout hook.
+- `Summary`: balance, usage-to-date, baseline burn, ending balance, depletion.
+- `Chart`: observed usage and projected scenario data.
+- `Scenarios`: keyboard-operable low/base/high selection and comparison.
+- `Warnings`: semantic warning list with text labels.
+- `Breakdown`: trace and daily values required to audit calculations.
+- `Actions`: host-supplied content only. No built-in purchase or top-up action.
+
+### UI quality contract
+
+- React peer support begins at `^18.2 || ^19`, limited to versions exercised
+  in CI.
+- Package import is SSR-safe: no `window` or `document` access at module scope.
+- CSS custom properties use `--credit-burndown-*`.
+- Public class names use `credit-burndown-*`.
+- Selectors remain low-specificity and no global reset ships.
+- A typed `messages` map supplies neutral English defaults and host overrides.
+- Layout responds to embedding-container width, not only viewport width.
+- Scenario controls, trace disclosure, and actions are keyboard operable.
+- Status is never conveyed by color alone.
+- Every chart has a screen-reader summary and an accessible tabular fallback.
+- Consumer tests cover narrow containers, zoom, reduced motion, high contrast,
+  and forced colors.
+- No formula is duplicated in a component or formatter.
+
+## Adapter interfaces
+
+Adapters transform data at the edge. The core never discovers or calls them.
+
+### Snapshot import
+
+```ts
+interface ForecastInputImporter<Source> {
+  readonly format: string;
+  import(source: Source): ImportResult<ForecastInput>;
+}
+
+interface ImportResult<Value> {
+  value?: Value;
+  errors: readonly MappingIssue[];
+  warnings: readonly MappingIssue[];
+}
+```
+
+An importer may normalize column names or product fields. It may not invent a
+missing balance, allocation, date, usage day, lookback, threshold, or
+scenario multiplier.
+
+### Result export
+
+```ts
+interface ForecastExporter<Artifact> {
+  readonly format: string;
+  export(request: {
+    input: ForecastInput;
+    result: ForecastResult;
+  }): Artifact;
+}
+```
+
+JSON export is lossless. CSV export declares its tables, delimiter, encoding,
+header version, decimal representation, and any omitted nested data. Lossy
+export emits a warning.
+
+### Product snapshot adapter
+
+```ts
+interface ProductSnapshotAdapter<ProductSnapshot> {
+  toForecastInput(snapshot: ProductSnapshot): ImportResult<ForecastInput>;
+}
+```
+
+Product adapters map stable host fields into the neutral contract. Product
+identifiers may be retained only in namespaced extensions. They are never
+required by the core.
 
 ## Namespaced extensions
 
-Portable objects may include:
+Portable inputs may carry optional metadata:
 
 ```json
 {
   "extensions": {
     "com.example.product": {
-      "localReference": "value"
-    },
-    "com.tanso": {
-      "creditModelRef": "adapter-managed-reference"
+      "accountReference": "customer-visible-reference"
     }
   }
 }
 ```
 
-Rules for extensions:
+- Namespaces should be collision-resistant.
+- Unknown extensions are preserved by lossless adapters.
+- The core never branches on extension content.
+- Secrets and credentials are forbidden.
+- A value that changes arithmetic belongs in the versioned neutral schema,
+  not an extension.
 
-- namespaces should use a reverse-domain or similarly collision-resistant
-  name;
-- unknown extensions are preserved when a format supports round trips;
-- the neutral core does not branch on an unknown extension;
-- secrets and credentials are never embedded;
-- product UUIDs may appear only as optional adapter metadata, never as neutral
-  identity; and
-- a field that changes neutral arithmetic must graduate into a versioned
-  neutral schema.
+## Optional hosted API
 
-## Neutral calculation input variants
+A generic API is a deployment choice, not an OSS runtime dependency. If one
+is later provided, the minimum operation is:
 
-The schema supports direct values for teams that already know their economics
-and decomposed values for teams that need the estimator to derive them. A
-metric chooses exactly one member of each pair:
-
-- `unitCost` or `unitCostComponents`;
-- `confidenceAdjustedValue` or `valueInputs`; and
-- `monthlyVolume` or `workloadDrivers`.
-
-Providing both members of a pair or neither member is a validation error. A
-selected decomposed object requires every component, including explicit zero
-values; validation never substitutes missing financial inputs.
-
-When `scenarios` is omitted, the direct metric inputs form one implicit
-`base` scenario with identity multipliers of one. This is a structural
-identity rule, not a financial default: all cost, value, and volume inputs are
-still required. Supplying a `scenarios` array requires explicit low, base, and
-high entries and all three multipliers for each entry.
-
-Conceptual decomposed input:
-
-```json
-{
-  "metricKey": "agent.example",
-  "unitCostComponents": {
-    "provider": {
-      "inputTokens": 10000,
-      "outputTokens": 5000,
-      "inputRatePerMillion": 1,
-      "outputRatePerMillion": 4
-    },
-    "infrastructureCost": 0.005,
-    "thirdPartyApiCost": 0.003,
-    "otherVariableCost": 0.002
-  },
-  "valueInputs": {
-    "estimatedValuePerAction": 4,
-    "evidenceConfidence": 0.5
-  },
-  "workloadDrivers": {
-    "accounts": 10,
-    "seatsPerAccount": 5,
-    "activeSeatPercentage": 0.8,
-    "actionsPerActiveSeatPerActiveDay": 2,
-    "activeDaysPerMonth": 20,
-    "adoptionPercentage": 0.5,
-    "completionPercentage": 0.9
-  }
-}
+```text
+POST /v1/forecasts
 ```
 
-Scenario inputs explicitly include `volumeMultiplier`, `costMultiplier`, and
-`providerPriceMultiplier`. For decomposed costs, the provider portion is
-multiplied by both cost and provider-price multipliers; non-provider variable
-costs are multiplied by the cost multiplier. A metric using direct `unitCost`
-requires `providerPriceMultiplier` to equal one because its provider portion
-is not separately known.
-
-`planAllocationBuffer` is a required global assumption. A plan recommendation
-identifies its `planKey` and may supply an explicit
-`allocationRoundingIncrement`; omitting that optional rounding field leaves
-the unrounded methodology result unchanged.
-
-Every recommended metric includes a structured `calculationTrace` with source
-input paths and ordered calculation steps. Each step has a stable `key`, a
-human-readable formula, named operands, and its result. Trace data explains
-arithmetic but is never re-evaluated as executable code.
-
-## Deterministic quote contract
-
-The rules engine evaluates a published model locally:
-
-    metricKey + quantity + context + modelVersion -> required credits
-
-Conceptual input:
-
-```json
-{
-  "schemaVersion": "1.0",
-  "methodologyVersion": "1.0",
-  "modelVersion": "2026-07-20.1",
-  "metricKey": "agent.deep_research",
-  "quantity": 3,
-  "context": {
-    "productKey": "assistant",
-    "planKey": "pro",
-    "segmentKey": "mid_market",
-    "extensions": {}
-  }
-}
-```
-
-Conceptual output:
-
-```json
-{
-  "schemaVersion": "1.0",
-  "methodologyVersion": "1.0",
-  "modelVersion": "2026-07-20.1",
-  "metricKey": "agent.deep_research",
-  "quantity": 3,
-  "creditsPerUnit": 20,
-  "requiredCredits": 60,
-  "appliedRuleKey": "agent.deep_research.default",
-  "warnings": [],
-  "calculationTrace": {
-    "formula": "quantity * creditsPerUnit",
-    "operands": [3, 20],
-    "result": 60
-  }
-}
-```
-
-The quote operation does not:
-
-- select a model based on the current clock;
-- call the estimator API;
-- read a wallet or subscription;
-- authorize the underlying action;
-- deduct, reserve, or grant credits; or
-- persist an event or transaction.
-
-The adopting runtime selects the already-published effective model, supplies
-its immutable `modelVersion`, evaluates the quote locally, and applies its own
-authorization and accounting behavior.
-
-## Embeddable React UI
-
-`packages/ui-react` is an optional presentation package, not a calculation or
-transport layer. It supports three composition modes through the same public
-contract:
-
-1. a browser host injects the pure core estimator for offline execution;
-2. a host injects a function that calls any compatible hosted estimator API;
-   or
-3. Tanso or another product embeds the controlled components and injects its
-   own orchestration.
-
-The conceptual boundary is deliberately small:
-
-```ts
-import { z } from "zod";
-
-export type Estimate = (
-  input: EstimatorInput,
-  context: { signal: AbortSignal },
-) => EstimatorResult | Promise<EstimatorResult>;
-
-export const EstimateErrorCodeSchema = z.enum([
-  "VALIDATION_ERROR",
-  "ESTIMATOR_UNAVAILABLE",
-  "ESTIMATION_FAILED",
-  "ABORTED",
-]);
-
-export const EstimateErrorIssueSchema = z.object({
-  path: z.array(z.union([z.string(), z.number().int().nonnegative()])),
-  code: z.string().min(1),
-  message: z.string().min(1),
-}).strict();
-
-export const EstimateErrorSchema = z.object({
-  code: EstimateErrorCodeSchema,
-  message: z.string().min(1),
-  retryable: z.boolean(),
-  issues: z.array(EstimateErrorIssueSchema).optional(),
-}).strict();
-
-export type EstimateErrorCode = z.infer<typeof EstimateErrorCodeSchema>;
-export type EstimateError = z.infer<typeof EstimateErrorSchema>;
-
-export function normalizeEstimateError(
-  value: unknown,
-  context: { signal: AbortSignal },
-): EstimateError {
-  if (context.signal.aborted) {
-    return { code: "ABORTED", message: "Estimation aborted", retryable: false };
-  }
-
-  const parsed = EstimateErrorSchema.safeParse(value);
-  if (parsed.success) return parsed.data;
-
-  return {
-    code: "ESTIMATION_FAILED",
-    message: "Estimation failed",
-    retryable: false,
-  };
-}
-
-export interface ExportRequest {
-  format: string;
-  input: EstimatorInput;
-  result?: EstimatorResult;
-}
-
-export interface Exporter {
-  readonly format: string;
-  readonly label: string;
-  export(request: ExportRequest): void | Promise<void>;
-}
-
-export type CreditCalculatorMessageKey =
-  | "actions.calculate"
-  | "actions.calculating"
-  | "actions.retry"
-  | "actions.reset"
-  | "actions.addMetric"
-  | "actions.removeMetric"
-  | "actions.addScenario"
-  | "actions.removeScenario"
-  | "actions.addPlan"
-  | "actions.removePlan"
-  | "actions.showTrace"
-  | "actions.hideTrace"
-  | "actions.export"
-  | "sections.assumptions"
-  | "sections.metrics"
-  | "sections.scenarios"
-  | "sections.plans"
-  | "sections.results"
-  | "sections.warnings"
-  | "sections.calculationTrace"
-  | "fields.schemaVersion"
-  | "fields.methodologyVersion"
-  | "fields.modelVersion"
-  | "fields.currency"
-  | "fields.realizedPricePerCredit"
-  | "fields.targetGrossMargin"
-  | "fields.targetValueCapture"
-  | "fields.maximumValueCapture"
-  | "fields.creditIncrement"
-  | "fields.planAllocationBuffer"
-  | "fields.metricKey"
-  | "fields.planKey"
-  | "fields.scenarioKey"
-  | "fields.costInputMode"
-  | "fields.valueInputMode"
-  | "fields.workloadInputMode"
-  | "fields.monthlyVolume"
-  | "fields.unitCost"
-  | "fields.confidenceAdjustedValue"
-  | "fields.creditsPerUnitOverride"
-  | "fields.inputTokens"
-  | "fields.outputTokens"
-  | "fields.inputRatePerMillion"
-  | "fields.outputRatePerMillion"
-  | "fields.infrastructureCost"
-  | "fields.thirdPartyApiCost"
-  | "fields.otherVariableCost"
-  | "fields.estimatedValuePerAction"
-  | "fields.evidenceConfidence"
-  | "fields.accounts"
-  | "fields.seatsPerAccount"
-  | "fields.activeSeatPercentage"
-  | "fields.actionsPerActiveSeatPerActiveDay"
-  | "fields.activeDaysPerMonth"
-  | "fields.adoptionPercentage"
-  | "fields.completionPercentage"
-  | "fields.volumeMultiplier"
-  | "fields.costMultiplier"
-  | "fields.providerPriceMultiplier"
-  | "fields.allocationRoundingIncrement"
-  | "help.realizedPricePerCredit"
-  | "help.modelVersion"
-  | "help.targetGrossMargin"
-  | "help.targetValueCapture"
-  | "help.maximumValueCapture"
-  | "help.unitCost"
-  | "help.evidenceConfidence"
-  | "help.planAllocationBuffer"
-  | "help.scenarioMultipliers"
-  | "results.costFloorCredits"
-  | "results.valueSupportedCredits"
-  | "results.maximumValueCredits"
-  | "results.recommendedCreditsPerUnit"
-  | "results.providerUnitCost"
-  | "results.totalUnitCost"
-  | "results.confidenceAdjustedValue"
-  | "results.forecastMonthlyVolume"
-  | "results.expectedUnitRevenue"
-  | "results.expectedUnitGrossMargin"
-  | "results.monthlyCredits"
-  | "results.monthlyCost"
-  | "results.consumptionRevenue"
-  | "results.grossProfit"
-  | "results.grossMargin"
-  | "results.baseMonthlyCredits"
-  | "results.bufferedMonthlyCredits"
-  | "results.recommendedMonthlyCredits"
-  | "results.baseUtilization"
-  | "results.highUtilization"
-  | "results.expectedUnusedCredits"
-  | "results.highScenarioShortfallCredits"
-  | "status.resultOutdated"
-  | "status.noResults"
-  | "status.exporting"
-  | "status.exportSucceeded"
-  | "status.feasible"
-  | "status.economicallyInfeasible"
-  | "errors.validation"
-  | "errors.unavailable"
-  | "errors.failed"
-  | "errors.exportFailed";
-
-export type CreditCalculatorMessages = Readonly<
-  Record<CreditCalculatorMessageKey, string>
->;
-
-export type CreditCalculatorMessageOverrides =
-  Partial<CreditCalculatorMessages>;
-
-export interface CreditCalculatorProps {
-  value: EstimatorInput;
-  onChange(nextValue: EstimatorInput): void;
-  onReset?(): void;
-  estimate: Estimate;
-  exporters?: readonly Exporter[];
-  messages?: CreditCalculatorMessageOverrides;
-}
-```
-
-Inputs, results, error schemas, and error types are exported by
-`packages/schema`. The `Estimate`, exporter, message, props, and error
-normalizer contracts are exported by `packages/ui-react`; the combined code
-above is conceptual rather than one physical source file.
-Supporting both synchronous and asynchronous estimators lets a host choose
-local core execution or remote transport without a mode flag in the generic
-UI.
-
-An estimator throws synchronously or rejects asynchronously. The UI passes
-every rejection through `normalizeEstimateError`; TypeScript annotations on a
-throw are never trusted at runtime. A host should map transport,
-authentication, rate-limit, and provider failures into `EstimateError`, but an
-invalid or arbitrary rejection still becomes a non-retryable
-`ESTIMATION_FAILED` error without exposing a stack or secret. Cancellation is
-detected from the supplied signal rather than a platform-specific exception.
-`ABORTED` is control flow and is not announced as a user-facing failure when
-the component initiated the cancellation.
-
-Estimation occurs only when the user explicitly submits **Calculate**. The
-controlled `value` is immutable: every edit supplies a new object and mutation
-in place is unsupported. Editing updates controlled state, marks an existing
-result as outdated, aborts an in-flight calculation, and invalidates its
-sequence without calling `estimate`.
-
-Each submission increments a monotonically increasing request sequence,
-captures the immutable input reference and estimator function, and passes a
-new controller's signal. A completion is accepted only when its sequence,
-input reference, and estimator reference remain current. A change to `value`
-or `estimate`, an explicit reset, or component unmount aborts and invalidates
-the active request. When `onReset` is supplied, the calculator renders its
-reset action; activation first clears transient result/error state and
-invalidates work, then invokes the host callback. No reset action is rendered
-without that capability. Sequence rejection remains required even when the
-estimator honors cancellation because a remote computation may still finish.
-
-The package should offer both a convenient assembled component and composable
-controlled parts:
-
-```tsx
-<CreditCalculator.Root
-  value={calculatorInput}
-  onChange={setCalculatorInput}
-  estimate={estimate}
-  exporters={[jsonExporter, csvExporter]}
-  messages={messages}
->
-  <CreditCalculator.Assumptions />
-  <CreditCalculator.Metrics />
-  <CreditCalculator.Scenarios />
-  <CreditCalculator.Results />
-  <CreditCalculator.Warnings />
-</CreditCalculator.Root>
-```
-
-The first UI version presents economic assumptions, workload metrics,
-low/base/high scenarios, recommended weights, cost-floor and value-supported
-ranges, infeasibility warnings, calculation traces, and JSON/CSV export
-actions. The calculator renders only the supplied exporters. Each exporter
-receives the current neutral input and, when available, its corresponding
-result; format adapters own serialization and mapping warnings. No exporter
-controls are rendered when the list is absent or empty.
-Exporter `format` values are stable, case-sensitive capability keys and must
-be unique within one calculator. Duplicate keys are invalid configuration and
-must be surfaced rather than silently collapsed.
-
-### UI boundaries
-
-- The UI never implements or approximates pricing formulas. It renders the
-  injected estimator's versioned result and trace.
-- The core entry point used for browser-local estimation has no Node-only
-  runtime dependency and requires no polyfills.
-- It ships no required API client and owns no credentials, authentication,
-  persistence, Stripe behavior, wallet state, or entitlements.
-- Tanso actions such as publishing weights live in
-  `packages/ui-tanso-react`. The headless `packages/adapters/tanso` package
-  imports no React or UI code. Removing both leaves the generic calculator
-  fully functional.
-- The reference `apps/calculator` may demonstrate local and remote adapters,
-  but it is not a required production dependency.
-- Default copy uses provider-neutral terms. Product branding and terminology
-  are supplied by the embedding host.
-
-### UI quality contract
-
-- Public components are controlled and composable; hosts own durable state.
-- The published package is `@tansohq/credit-calculator-react`, with React peer
-  support limited to versions exercised in CI, initially
-  `^18.2.0 || ^19.0.0`.
-- Stable semantic CSS custom properties use the `--credit-calculator-*`
-  prefix. Class names use the `credit-calculator-*` prefix, selectors have low
-  specificity, and the package supplies no global reset or utility-framework
-  assumption.
-- Importing the package during SSR does not access `window` or `document` at
-  module scope. Browser-only behavior is guarded and begins in effects or
-  event handlers.
-- A typed `messages` contract supplies neutral English defaults for all
-  generic labels, help, status, and error text and allows host overrides.
-  The shipped default catalog must satisfy the complete
-  `CreditCalculatorMessageKey` union, so adding user-visible generic copy
-  requires an explicit contract update. Exporter labels are supplied by the
-  host and may already be localized.
-- Forms use semantic labels and field-level errors, all workflows are keyboard
-  operable, focus moves predictably after validation failures, and status or
-  warning meaning is not conveyed by color alone.
-- Asynchronous status and result changes use appropriate live-region behavior
-  without repeatedly interrupting assistive technology.
-- Layouts work from narrow embedding containers through desktop widths; they
-  respond to available component space where practical, not only viewport
-  size.
-- A Web Component is not part of the first UI release. Reconsider it only
-  after at least two committed non-React adopters cannot reasonably use the
-  React package.
-- Future tests cover controlled-state behavior, local/remote result parity,
-  explicit-submit behavior, cancellation, sequence-based stale-response
-  rejection after resubmission, editing, input replacement, estimator
-  replacement, reset, or unmount, runtime error normalization, exporter
-  discovery, SSR-safe import, localization,
-  accessibility, responsive layouts, and the golden scenario presentation
-  path.
-
-Implementation starts only after the deterministic core passes the golden
-fixtures. `apps/calculator` then proves that local and hosted estimators are
-interchangeable without duplicating methodology.
-
-## Data flows
-
-### 1. Offline estimation and file exchange
-
-```mermaid
-flowchart LR
-  Input["JSON or CSV input"] --> Codec["Format adapter"]
-  Codec --> Schema["Neutral validation"]
-  Schema --> Core["Pure estimator core"]
-  Core --> Result["Versioned result + traces"]
-  Result --> Export["JSON or CSV export"]
-```
-
-The CLI is an orchestrator around this flow. A format adapter may report
-mapping warnings but must not change formulas.
-
-### 2. Generic hosted API
-
-```mermaid
-flowchart LR
-  Client["Any client"] --> API["Optional /v1 transport"]
-  API --> Schema["Neutral validation"]
-  API --> Core["Pure core"]
-  Core --> API
-  API --> Client
-```
-
-The hosted API is convenient, not authoritative. It uses the same versions
-and payloads as the library and CLI. Future HTTP design should use versioned
-resource-oriented routes, consistent validation errors, and an OpenAPI
-contract. It must not introduce calculations that are absent from the core.
-Its client maps structured transport failures to the neutral `EstimateError`
-contract. Request identifiers and HTTP metadata remain outside deterministic
-calculation results.
-
-Candidate transport operations, not yet implemented:
-
-- `POST /v1/estimates` to calculate a recommendation;
-- `POST /v1/quotes` for testing or non-critical convenience; and
-- `POST /v1/publications` to initiate an explicitly approved adapter flow.
-
-Production request paths still evaluate published models locally.
-
-### 3. Embeddable calculator
-
-```mermaid
-flowchart LR
-  UI["Controlled React UI"] --> Contract["Injected estimate function"]
-  Contract --> Local["Local core in browser"]
-  Contract --> Remote["Any compatible estimator API"]
-  Host["Embedding host"] --> UI
-  UI --> Export["Configured exporters"]
-  Export --> JSON["JSON exporter"]
-  Export --> CSV["CSV exporter"]
-```
-
-Only one estimator implementation is injected for a mounted calculator. The
-UI has no direct dependency on either branch. The embedding host owns any
-remote authentication, storage, retry policy, and product-specific controls.
-Editing does not traverse either estimation branch; only explicit submission
-does. The UI passes an abort signal and independently rejects stale results by
-request sequence.
-
-### 4. Calibration and recommendation proposal
-
-```mermaid
-flowchart LR
-  Product["Adopting product telemetry"] --> Importer["Telemetry import adapter"]
-  Importer --> Observations["Neutral immutable observations"]
-  Observations --> Core["Calibration analysis"]
-  Core --> Proposal["Versioned recommendation proposal"]
-  Proposal --> Review["Explicit human or policy approval"]
-```
-
-The core receives a snapshot; it does not fetch live telemetry. A proposal is
-not a production rule.
-
-### 5. Publication and runtime use
-
-```mermaid
-sequenceDiagram
-  participant E as Estimator
-  participant R as Reviewer
-  participant A as Publisher adapter
-  participant P as Adopting product
-  participant Q as Local rules engine
-
-  E->>R: Immutable recommendation proposal
-  R->>A: Approved modelVersion + effectiveAt
-  A->>P: Publish idempotently
-  P-->>A: Publication receipt
-  P->>Q: Pinned published model + quote input
-  Q-->>P: Required credits + trace
-  Note over P: Product enforces entitlement and records ledger/event effects
-```
-
-The publication adapter may be unavailable without affecting already
-published local quote evaluation.
-
-## Adapter contracts
-
-These interfaces are conceptual TypeScript contracts. They define ownership
-and side effects; they are not application code.
-
-### Model export and import
-
-```ts
-interface ModelExportAdapter {
-  readonly format: string;
-  exportModel(model: PortableCreditModel): ExportArtifact;
-}
-
-interface ModelImportAdapter {
-  readonly format: string;
-  importModel(source: ImportArtifact): ImportResult<PortableCreditModel>;
-}
-```
-
-Requirements:
-
-- JSON export is lossless and canonicalizable.
-- CSV export documents its table layout and any unsupported nested fields.
-- Imports return validation and mapping warnings; they never invent missing
-  financial values.
-- Round trips preserve required versions, stable keys, traces, and supported
-  extensions.
-
-### Telemetry import
-
-```ts
-interface TelemetryImportAdapter {
-  importTelemetry(request: TelemetryImportRequest):
-    Promise<TelemetrySnapshot>;
-}
-```
-
-Requirements:
-
-- adapters normalize product events into versioned neutral observations;
-- snapshots include source identity and an explicit observation window;
-- metric, product, plan, and segment references use stable keys after mapping;
-- the core receives a complete immutable snapshot and performs no fetch; and
-- missing, duplicate, or unmapped records are surfaced explicitly.
-
-### Cost catalog provider
-
-```ts
-interface CostCatalogProvider {
-  getCatalog(request: CostCatalogRequest): Promise<CostCatalogSnapshot>;
-}
-```
-
-Requirements:
-
-- the provider resolves external prices outside the deterministic calculation;
-- the snapshot includes currency, unit basis, source, and `asOf` supplied by
-  the provider;
-- the core treats the snapshot as explicit input;
-- cached or offline catalogs are valid implementations; and
-- a calculation never changes because a live catalog changed mid-run.
-
-### Runtime model publication
-
-```ts
-interface RuntimeModelPublisher {
-  publish(request: ApprovedPublicationRequest):
-    Promise<PublicationReceipt>;
-}
-```
-
-`ApprovedPublicationRequest` includes the immutable model, approval evidence,
-explicit `effectiveAt`, target adapter key, and idempotency key.
-
-Requirements:
-
-- reject requests without approval or `effectiveAt`;
-- do not mutate weights during translation;
-- report unsupported rules before activation;
-- support idempotent retries;
-- return product-specific identifiers only in a namespaced extension; and
-- leave runtime activation, rollback, wallets, and transactions with the
-  adopting product.
-
-## Adapter composition
-
-The core does not discover or call adapters. A delivery layer composes them:
-
-- the CLI chooses JSON or CSV codecs from command options;
-- the API app selects configured telemetry, catalog, or publisher adapters;
-- the calculator app injects local core execution or a hosted API function
-  into the UI and supplies JSON/CSV exporters;
-- offline library consumers pass already-normalized objects directly; and
-- adopting products embed the rules engine with a pinned published model.
-
-This inversion keeps optional products at the edge.
-
-## JSON and CSV portability
-
-JSON is the canonical interchange format because it can preserve nested
-traces, versions, rules, warnings, and extensions.
-
-CSV is a documented projection for tabular inputs and outputs. A multi-table
-model may use a manifest plus separate files for assumptions, metrics,
-scenarios, plans, and rules. CSV import/export must declare:
-
-- delimiter, encoding, decimal separator, and header version;
-- table and foreign-key conventions;
-- how extensions and traces are represented or omitted; and
-- whether a round trip is lossless.
-
-Lossy CSV export must emit a warning and must never be the only stored form of
-an approved published model.
-
-## Publication safety
-
-A recommendation passes through explicit states:
-
-    DRAFT -> PROPOSED -> APPROVED -> PUBLISHED -> EFFECTIVE
-
-- Calculation may produce `DRAFT` or `PROPOSED` artifacts only.
-- Approval identifies an immutable `modelVersion`.
-- Publication requires approval evidence and explicit `effectiveAt`.
-- Adapters publish idempotently and return receipts.
-- Adopting products own activation and rollback.
-- Recalibration creates a new proposal and model version; it does not edit the
-  effective model in place.
-
-## Security and reliability boundaries
-
-- Neutral packages contain no credentials or network clients.
-- Delivery layers validate untrusted input before invoking the core.
-- Adapters own secret access, authentication, retry, timeout, and rate-limit
-  behavior.
-- Publication adapters should use least-privilege credentials and idempotency.
-- Published models should be immutable and verifiable; signing policy remains
-  an open decision.
-- Runtime quote evaluation must continue during estimator API or publication
-  adapter outages.
-
-## Architecture acceptance checks
-
-- Removing `packages/adapters/tanso` does not break schema, core, rules engine,
-  JSON/CSV workflows, CLI, generic API behavior, or the generic React UI.
-- Core dependency manifests contain no adapter or product SDK.
-- The React UI can render and estimate with a test function and no network,
-  credentials, API app, or product adapter.
-- Browser-local estimation loads the pure core without Node.js polyfills.
-- The UI calls the estimator only on explicit submission, passes an
-  `AbortSignal`, and rejects every completion whose request sequence is stale.
-- Input replacement, estimator replacement, reset, and unmount abort and
-  invalidate active estimation. Arbitrary rejection values normalize through
-  `EstimateErrorSchema` without exposing internal details.
-- The UI renders exactly the configured exporters and none when no exporters
-  are supplied.
-- `packages/adapters/tanso` imports no React; optional Tanso controls exist
-  only in `packages/ui-tanso-react`.
-- Package import is SSR-safe, and all default CSS selectors and public custom
-  properties use the documented prefix.
-- Golden fixtures contain no required product-specific identifier.
-- Golden fixtures cover decomposed cost, confidence adjustment, driver-based
-  volume, plan allocation, and structured traces as well as direct inputs.
-- The same published model and quote input produce identical output offline,
-  through the CLI, and through the API wrapper.
-- Every result contains all three versions.
-- Delivery and publication tests reject reuse of one `modelVersion` for two
-  different calculation-relevant payloads; caches include the canonical input
-  or its deterministic digest.
-- No live quote requires credentials or network access.
-- Publication rejects missing approval or effective timestamp.
-- Automated recommendations cannot activate themselves.
-- Local and hosted estimator functions produce the same UI result for the
-  same versioned input, and no component duplicates calculation formulas.
-
-## Open questions
-
-1. Which portable execution targets, if any, are required beyond Node.js and
-   modern browsers?
-2. Should published models be cryptographically signed, and by whom?
-3. How should model rollback and overlapping effective windows be represented?
-4. Which context fields may select a rule without making behavior opaque?
-5. What CSV layout provides the best balance between usability and lossless
-   round trips?
-6. Should cost catalog snapshots be embedded in model inputs or referenced by
-   content hash?
-7. What approval evidence is portable across adopting products?
-8. What decimal precision and tie-breaking rules apply to
-   `round_to_increment` and non-exact plan-allocation rounding?
+The request body is `ForecastInput`. A successful response body is
+`ForecastResult`. Validation failures use stable field paths and error codes.
+Request IDs, authentication data, server timestamps, and transport metadata
+remain outside the deterministic payload.
+
+Transport semantics:
+
+- `200 OK`: deterministic `ForecastResult`;
+- `400 Bad Request`: malformed JSON or unsupported content type;
+- `422 Unprocessable Content`: neutral validation failure with echoed
+  `schemaVersion`, `methodologyVersion`, `code`, and `issues`;
+- `429 Too Many Requests`: deployment-specific rate limit; and
+- `500` or `503`: transport failure, never a partial forecast.
+
+Success has no API-only envelope, so the exact result can pass directly to
+the React package. Deployment failures use a separate transport error with a
+stable code, safe message, and optional request ID. Request IDs belong in a
+header or transport error, not `ForecastResult`. The operation has no
+persistent side effect; retrying the same valid request is safe.
+
+The API must call the same core entry point as browser and host-side usage.
+It must not introduce alternate defaults or formulas. The React package must
+not require it.
+
+## Security and privacy boundaries
+
+- No customer identity or personal data is required for calculation.
+- Neutral packages contain no credentials, network clients, telemetry, or
+  persistence.
+- The host decides what snapshot data may leave its environment.
+- Product adapters own credential access and should emit neutral snapshots
+  without secrets.
+- Calculation traces include numeric inputs; hosts decide whether those are
+  safe to display or export.
+- The estimator cannot authorize a wallet or billing action because it has no
+  access to either system.
+
+## Acceptance checks
+
+- Core calculation works offline with no credentials, network, product SDK,
+  browser global, or filesystem access.
+- Removing every adapter leaves schema, core, golden fixtures, and React UI
+  contracts intact.
+- Golden fixtures contain no required product identifiers.
+- Every fixture supplies and asserts `schemaVersion` and
+  `methodologyVersion`; none contains `modelVersion`.
+- Fixture history and projection ranges do not overlap or leave missing days.
+- Summary values reconcile with daily chart points.
+- Every warning and status is explainable from a trace.
+- Local and host-side execution return structurally identical results.
+- React components can render a fixture result with no network or core import.
+- Accessible chart data remains understandable without color or pointer input.
+- No neutral package imports Tanso code.
+
+## Roadmap ownership
+
+| Capability | Phase | Owner | Status |
+|---|---|---|---|
+| Neutral snapshot and result schemas | 1 | Estimator | Implemented |
+| Deterministic methodology and golden fixtures | 1 | Estimator | Implemented |
+| Browser-compatible forecast core | 2 | Estimator | Implemented |
+| Embeddable React burndown UI | 3 | Estimator | Implemented |
+| JSON/CSV import and export | 4 | Estimator | Implemented |
+| Demo application | 4 | Estimator | Deferred |
+| Optional Tanso snapshot mapping | 5 | Tanso adapter | Deferred |
+| Product data retrieval and daily aggregation | Adoption | Adopting product | Outside estimator |
+| Dashboard placement, branding, and refresh | Adoption | Adopting product | Outside estimator |
+| Wallet operations and ledger persistence | Adoption | Adopting product | Outside estimator |
+| Billing, top-ups, entitlements, and customer actions | Adoption | Adopting product | Outside estimator |
+
+## Deferred decisions
+
+1. Whether the repository should be renamed from `credit-estimator` to make
+   burndown forecasting explicit.
+2. Chart rendering dependency and bundle-size budget.
+3. Whether a Web Component is justified by committed non-React adopters.
+4. Support for hourly, weekly, seasonal, or custom forecast models.
+5. Handling partial current-day observations.
+6. License and public contribution policy.

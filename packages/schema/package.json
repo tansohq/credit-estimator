@@ -1,0 +1,42 @@
+{
+  "name": "@tansohq/credit-forecast-schema",
+  "version": "0.1.0",
+  "description": "Provider-neutral Zod schemas for deterministic credit usage forecasts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tansohq/credit-estimator.git",
+    "directory": "packages/schema"
+  },
+  "homepage": "https://github.com/tansohq/credit-estimator#readme",
+  "bugs": {
+    "url": "https://github.com/tansohq/credit-estimator/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false
+}

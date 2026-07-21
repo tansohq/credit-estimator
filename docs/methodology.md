@@ -1,289 +1,297 @@
-# Credit Estimation Methodology
+# Credit Usage Forecasting Methodology
 
 ## Purpose
 
-This document defines the calculation methodology that should first be
-validated in a spreadsheet and then implemented as a pure calculation engine.
+This document defines the deterministic calculations for a customer-facing
+credit usage and burndown forecast. The engine combines complete daily usage
+history, the current credit balance, explicit future balance changes, and
+low/base/high burn assumptions.
 
-The methodology connects:
+The result gives adopting products the observed and projected series needed to
+render usage charts without duplicating forecast formulas.
 
-    customer variables
-      -> forecast metric volumes
-      -> metric economics
-      -> credit weights
-      -> expected credit demand
-      -> provider cost and customer revenue
-      -> margin and plan recommendations
+The engine does not set credit prices or weights. It does not own balances,
+transactions, grants, deductions, entitlements, subscriptions, or payments.
 
-Every derived value must be auditable from explicit inputs.
+## Deterministic inputs
 
-## Required units
+Every calculation input includes:
 
-Every input must declare or imply:
+- `schemaVersion`;
+- `methodologyVersion`;
+- `asOf`;
+- `period.startDate` and `period.endDate`;
+- `period.allocation`;
+- `period.lowBalanceThreshold`;
+- `lookbackDays`;
+- `dailyUsage`;
+- `balance.current`;
+- `balance.schedule`; and
+- exactly three scenarios: `low`, `base`, and `high`.
 
-- currency, using an ISO 4217 code;
-- forecast period, initially monthly;
-- provider token rates, expressed per million tokens;
-- workload frequency, expressed per seat per day or directly per month;
-- metric unit, such as completed research task or generated document; and
-- credit increment, such as 1 or 0.1 credits.
+Every successful output echoes `schemaVersion`, `methodologyVersion`, and
+`asOf`, and returns the calculated `daysRemaining`. `modelVersion` is not part
+of this forecasting contract.
 
-Do not mix annual customer value with monthly usage until both are converted
-to the same period.
+The calculation must not read the current clock, generate timestamps, call a
+network service, read product credentials, or depend on provider-specific
+identifiers. The caller supplies `asOf` explicitly.
 
-## Global assumptions
+All decimal credit amounts, balances, rates, multipliers, utilization values,
+and decimal trace operands or results use canonical base-10 strings in JSON.
+For example, use `"50"`, `"0.5"`, and `"-25.5"`. Use `"0"` for zero; omit
+insignificant leading or trailing zeros; never use exponent notation. Integer
+counts such as `lookbackDays` and `daysRemaining` remain JSON integers.
+Implementations must parse decimal strings into a decimal-safe type and must
+never perform these calculations with binary floating point.
 
-At minimum, a model defines:
+## Precision and rounding
 
-- realized price per credit;
-- target gross margin;
-- target customer-value capture rate;
-- maximum customer-value capture rate;
-- credit rounding increment;
-- plan allocation buffer;
-- currency; and
-- methodology version.
+Calculation precision is deterministic:
 
-Realized price per credit is:
+- input decimal strings may contain at most 12 fractional digits;
+- every named decimal result is rounded to at most 12 fractional digits using
+  round-half-up;
+- trailing fractional zeros are removed after rounding;
+- negative zero is serialized as `"0"`; and
+- each subsequent formula uses the rounded value of the preceding named
+  result.
 
-    package price / package credits
+For example, `1 / 3` becomes `"0.333333333333"` and
+`0.333333333333 * 1.5` becomes `"0.5"`. Addition and subtraction remain exact
+until the named result is rounded. This rule applies to summary values, chart
+points, warnings, and traces so they always reconcile.
 
-For a subscription plan it may be:
+## Date rules
 
-    (plan price - fixed platform fee) / included credits
+All dates are ISO 8601 calendar dates in `YYYY-MM-DD` form. Timestamps and time
+zones are invalid inputs.
 
-## Metric unit cost
+The allocation period is the half-open interval:
 
-Each metric represents a completed, billable product action.
+    [period.startDate, period.endDate)
 
-AI provider cost is:
+The observed interval is:
 
-    input tokens / 1,000,000 * input rate per million
-      + output tokens / 1,000,000 * output rate per million
+    [period.startDate, asOf)
 
-Total unit cost is:
+The forecast interval is:
 
-    AI provider cost
-      + infrastructure cost
-      + third-party API cost
-      + other variable cost
+    [asOf, period.endDate)
 
-Labor that does not vary with each completed action should not be treated as a
-unit cost unless the model explicitly allocates it.
+`asOf` must be later than `period.startDate` and earlier than
+`period.endDate`. `daysRemaining` is the number of calendar dates in the
+forecast interval. No generated calculation timestamp belongs in the output.
 
-## Customer value
+## Daily usage history
 
-Customer value per metric unit may be estimated from:
+`dailyUsage` must contain exactly one bucket for every calendar date in the
+observed interval, ordered by date, with no missing dates and no duplicates.
+Each bucket contains:
 
-    revenue enhancement
-      + labor or operating cost savings
-      + probability-weighted loss avoided
-      + operating-capital benefit
-      + capital-investment deferral
-      + option or strategic value
-      - unique customer costs
-      - expected shortfall
+- `date`; and
+- non-negative `creditsUsed`.
 
-Probability-weighted risk reduction is:
+Missing dates are not silently treated as zero. A zero-usage day must be
+supplied explicitly with `creditsUsed: "0"`. Extra buckets outside the observed
+interval are invalid.
 
-    loss amount * probability before
-      - loss amount * probability after
+`creditsUsedToDate` is:
 
-If value is estimated annually, value per action is:
+    creditsUsedToDate = sum(dailyUsage[*].creditsUsed)
 
-    annual value / expected annual completed actions
+The output includes an observed chart point for every input bucket:
 
-Confidence-adjusted value is:
+    observedPoints[n].date = dailyUsage[n].date
+    observedPoints[n].creditsUsed = dailyUsage[n].creditsUsed
+    observedPoints[n].cumulativeCreditsUsed
+      = sum(dailyUsage[0..n].creditsUsed)
 
-    estimated value per action * evidence confidence
+## Baseline daily burn
 
-Confidence is an explicit input between zero and one. Suggested evidence
-bands are:
+`lookbackDays` is an explicit positive integer no greater than the number of
+observed daily buckets. The lookback window ends on `asOf` and contains the
+last `lookbackDays` buckets.
 
-- 0.30 for an unsupported internal assumption;
-- 0.60 for customer research or a credible external benchmark; and
-- 0.90 for measured customer results.
+Baseline daily burn is:
 
-These bands are defaults, not universal truth.
+    baselineDailyBurn
+      = sum(credits used in lookback window) / lookbackDays
 
-## Credit-weight guardrails
+The engine does not infer a lookback length and does not substitute a default.
 
-Minimum credits required to meet margin are:
+## Scenarios
 
-    ceil_to_increment(
-      unit cost
-      / (realized price per credit * (1 - target gross margin))
-    )
+The input must contain scenarios in this order:
 
-Value-supported credits are:
+    low, base, high
 
-    round_to_increment(
-      confidence-adjusted value
-      * target value-capture rate
-      / realized price per credit
-    )
+Each scenario has an explicit non-negative `burnMultiplier`. The base
+multiplier must equal `1`. Multipliers must be ordered:
 
-Maximum value credits are:
+    low.burnMultiplier < base.burnMultiplier < high.burnMultiplier
 
-    floor_to_increment(
-      confidence-adjusted value
-      * maximum value-capture rate
-      / realized price per credit
-    )
+Scenario daily burn is:
 
-Recommended credits per metric unit are initially:
-
-    max(minimum cost credits, value-supported credits)
-
-A metric is economically infeasible when:
-
-    minimum cost credits > maximum value credits
-
-An infeasible metric must remain visible in the result. The engine must not
-silently lower its cost, raise its value, or hide the warning.
-
-Unit revenue is:
-
-    recommended credits * realized price per credit
-
-Expected unit gross margin is:
-
-    (unit revenue - unit cost) / unit revenue
-
-If unit revenue is zero, gross margin should be returned as zero or null
-according to the output schema, never as an arithmetic error.
-
-## Customer workload forecast
-
-For a driver-based forecast, monthly metric volume is:
-
-    accounts
-      * seats per account
-      * active-seat percentage
-      * actions per active seat per active day
-      * active days per month
-      * adoption percentage
-      * completion percentage
-
-A direct monthly-volume input may be supported when the driver components are
-not available. The output should retain which forecasting method was used.
-
-Start with the few variables that materially affect consumption. Do not add a
-large customer questionnaire until design partners demonstrate that it
-improves decisions.
-
-## Scenario analysis
-
-The initial model supports low, base, and high scenarios. Scenario
-multipliers are explicit inputs for:
-
-- metric volume;
-- token volume or unit cost; and
-- provider price.
+    dailyBurn = baselineDailyBurn * burnMultiplier
 
 For each scenario:
 
-    monthly credits
-      = sum(monthly metric volume * credits per metric unit)
+    projectedCreditsUsed = dailyBurn * daysRemaining
 
-    monthly provider cost
-      = sum(monthly metric volume * unit cost)
+    projectedPeriodConsumption = creditsUsedToDate + projectedCreditsUsed
 
-    consumption revenue
-      = monthly credits * realized price per credit
+    utilization = projectedPeriodConsumption / period.allocation
 
-    gross profit
-      = consumption revenue - monthly provider cost
+`period.allocation` must be greater than zero. Utilization may exceed `1`.
 
-    gross margin
-      = gross profit / consumption revenue
+## Future balance schedule
 
-If scenario multipliers are ordered low, base, and high, corresponding demand
-outputs should also remain ordered unless an explicit nonlinear rule explains
-otherwise.
+`balance.current` is the credit balance at the start of `asOf`, before any
+scheduled balance change or forecast usage on that date. It may be zero or
+negative.
 
-## Plan allocation
+`balance.schedule` contains explicit future balance changes. Each item has:
 
-A simple starting recommendation is:
+- `date` in the forecast interval; and
+- signed `creditDelta`.
 
-    base monthly credits * (1 + allocation buffer)
+Positive values may represent grants or top-ups. Negative values may represent
+expirations or adjustments. Optional reason or extension data is descriptive
+and must not change arithmetic. Schedule rows are ordered by date. Multiple
+changes on one date are allowed and summed in their supplied order.
 
-The result may round this amount to a customer-friendly package increment.
+For each forecast date, a scheduled delta is applied at the start of the date,
+then daily burn is deducted:
 
-Plan analysis should report:
+    startBalance[date]
+      = date == asOf
+          ? balance.current
+          : endingBalance[previous date]
 
-- expected utilization;
-- high-scenario utilization;
-- effective price per consumed credit;
-- expected provider cost;
-- expected gross margin;
-- probability or scenario of requiring a top-up; and
-- expected unused credits.
+    balanceDelta[date]
+      = sum(schedule.creditDelta where schedule.date == date)
 
-Do not rely on unused-credit breakage to make otherwise unprofitable unit
-economics appear healthy.
+    creditsUsed[date] = dailyBurn
+
+    endingBalance[date]
+      = startBalance[date] + balanceDelta[date] - creditsUsed[date]
+
+Each scenario returns one projected chart point per forecast date with:
+
+- `date`;
+- `startBalance`;
+- `balanceDelta`;
+- `creditsUsed`; and
+- `endingBalance`.
+
+The scenario `endingBalance` is the final projected point's ending balance. It
+may be negative.
+
+## Depletion and status
+
+`depletionDate` is the first forecast date whose projected point has:
+
+    endingBalance <= 0
+
+It is `null` when no forecast point meets that condition. A later grant does
+not erase an earlier depletion date.
+
+Credit shortfall is:
+
+    shortfall = max(0, -endingBalance)
+
+Status uses any projected depletion, then final projected ending balance and
+the explicit threshold:
+
+    if depletionDate != null:
+      DEPLETION_PROJECTED
+    else if endingBalance <= period.lowBalanceThreshold:
+      LOW_BALANCE_PROJECTED
+    else:
+      ON_TRACK
+
+`period.lowBalanceThreshold` must be non-negative. Threshold equality returns
+`LOW_BALANCE_PROJECTED`. A later scheduled grant can restore a positive final
+balance, but it does not erase an earlier depletion date, status, or warning.
+
+## Warnings
+
+Warnings are structured and deterministic. At minimum:
+
+- a `DEPLETION_PROJECTED` warning identifies every scenario with a non-null
+  `depletionDate` and includes `depletionDate` and final `shortfall`; and
+- a `LOW_BALANCE_PROJECTED` warning identifies every scenario with a positive
+  ending balance at or below the explicit threshold.
+
+Warnings must not modify inputs, suppress scenarios, or invent corrective
+actions.
 
 ## Calculation trace
 
-Every recommended metric weight should include:
+Every successful result includes `calculationTrace.sourceInputs` and ordered
+`calculationTrace.steps`. The trace preserves:
 
-- source inputs;
-- calculated unit cost;
-- confidence-adjusted customer value;
-- cost-floor credits;
-- value-supported credits;
-- maximum value credits;
-- recommended credits;
-- expected unit revenue;
-- expected unit margin;
-- feasibility status; and
-- warnings.
+- source input paths and values;
+- cumulative observed usage;
+- baseline lookback selection, sum, and division;
+- calendar `daysRemaining`;
+- scenario daily burn;
+- projected usage;
+- projected period consumption;
+- utilization;
+- scheduled balance deltas;
+- ending balance;
+- depletion-date selection;
+- shortfall; and
+- status selection.
 
-## Worked examples
+Trace steps are ordered. Each step includes a stable key, the formula or rule,
+its operands, and its result. A consumer must be able to explain every chart
+point and summary without rerunning hidden formulas.
 
-### Simple summarization
+## Validation failures
+
+Invalid inputs produce a structured validation failure rather than a partial
+forecast. The failure echoes `schemaVersion` and `methodologyVersion` and
+contains stable issue codes and input paths.
+
+Validation must reject at least:
+
+- invalid or non-date-only date strings;
+- an invalid period or `asOf` outside the allowed range;
+- missing, duplicated, unordered, or extra daily buckets;
+- negative observed usage;
+- an invalid `lookbackDays`;
+- a non-positive allocation;
+- a negative low-balance threshold;
+- missing, duplicated, unordered, or incorrectly multiplied scenarios;
+- an unordered schedule or a scheduled date outside the forecast interval;
+- non-decimal-safe or non-finite numeric values.
+
+Forecast inputs are never silently defaulted.
+
+## Worked example
 
 Given:
 
-- unit cost: 0.002 USD;
-- confidence-adjusted customer value: 0.20 USD;
-- realized price per credit: 0.01 USD;
-- target gross margin: 70 percent;
-- target value capture: 5 percent; and
-- maximum value capture: 10 percent.
+- period `[2026-01-01, 2026-01-11)`;
+- `asOf` `2026-01-06`;
+- five observed days of 50 credits each;
+- a three-day lookback;
+- current balance 700 credits;
+- allocation 1,000 credits;
+- low-balance threshold 100 credits;
+- no scheduled balance changes; and
+- multipliers `0.5`, `1`, and `1.5`;
 
-The cost floor is one credit, the value-supported weight is one credit, and
-the maximum value weight is two credits. The recommendation is one credit.
+the baseline is 50 credits per day and five forecast days remain. Base
+projected usage is 250 credits, projected period consumption is 500 credits,
+utilization is 0.5, ending balance is 450 credits, and status is `ON_TRACK`.
 
-### Deep research
+## Deferred forecasting methods
 
-Given:
-
-- unit cost: 0.02 USD;
-- confidence-adjusted customer value: 4.00 USD;
-- realized price per credit: 0.01 USD;
-- target gross margin: 70 percent;
-- target value capture: 5 percent; and
-- maximum value capture: 10 percent.
-
-The cost floor is seven credits, the value-supported weight is twenty
-credits, and the maximum value weight is forty credits. The recommendation is
-twenty credits. Unit revenue is 0.20 USD and expected unit gross margin is 90
-percent.
-
-## Calibration
-
-When production telemetry becomes available, compare:
-
-- forecast volume with actual volume;
-- estimated unit cost with actual unit cost;
-- expected credits with actual credit burn;
-- expected margin with actual margin; and
-- expected plan utilization with actual utilization.
-
-Recommended initial quality measures include weighted absolute percentage
-error, margin variance, package utilization, top-up frequency, and hard-limit
-denial rate.
-
-Automatic recalibration is not part of the MVP. The first feedback loop may
-be a manual report.
+Seasonality, day-of-week weighting, trend fitting, confidence intervals,
+probabilistic depletion, anomaly correction, and automated recommendations are
+outside this methodology version. They require explicit versioned formulas and
+new golden scenarios before implementation.
