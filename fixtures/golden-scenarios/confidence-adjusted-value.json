@@ -1,0 +1,56 @@
+{
+  "name": "confidence-adjusted value is derived from explicit evidence confidence",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.confidence-adjusted-value.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.confidence-adjusted-value.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.confidence_example",
+        "monthlyVolume": 50,
+        "unitCost": 0.01,
+        "valueInputs": {
+          "estimatedValuePerAction": 2,
+          "evidenceConfidence": 0.5
+        }
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.confidence-adjusted-value.v1",
+    "metrics": [
+      {
+        "metricKey": "agent.confidence_example",
+        "confidenceAdjustedValue": 1,
+        "costFloorCredits": 4,
+        "valueSupportedCredits": 5,
+        "maximumValueCredits": 10,
+        "recommendedCreditsPerUnit": 5,
+        "expectedUnitRevenue": 0.05,
+        "expectedUnitGrossMargin": 0.8,
+        "status": "FEASIBLE"
+      }
+    ],
+    "baseScenario": {
+      "monthlyCredits": 250,
+      "monthlyCost": 0.5,
+      "consumptionRevenue": 2.5,
+      "grossProfit": 2,
+      "grossMargin": 0.8
+    }
+  }
+}

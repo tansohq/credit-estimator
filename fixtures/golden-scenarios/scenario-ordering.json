@@ -1,0 +1,82 @@
+{
+  "name": "ordered demand multipliers produce ordered scenarios",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.scenario-ordering.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.scenario-ordering.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.generate",
+        "monthlyVolume": 1000,
+        "unitCost": 0.003,
+        "confidenceAdjustedValue": 0.4,
+        "creditsPerUnitOverride": 2
+      }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "volumeMultiplier": 0.7,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 1
+      },
+      {
+        "key": "base",
+        "volumeMultiplier": 1,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 1
+      },
+      {
+        "key": "high",
+        "volumeMultiplier": 1.4,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 1
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.scenario-ordering.v1",
+    "scenarios": [
+      {
+        "key": "low",
+        "monthlyCredits": 1400,
+        "monthlyCost": 2.1,
+        "consumptionRevenue": 14,
+        "grossMargin": 0.85
+      },
+      {
+        "key": "base",
+        "monthlyCredits": 2000,
+        "monthlyCost": 3,
+        "consumptionRevenue": 20,
+        "grossMargin": 0.85
+      },
+      {
+        "key": "high",
+        "monthlyCredits": 2800,
+        "monthlyCost": 4.2,
+        "consumptionRevenue": 28,
+        "grossMargin": 0.85
+      }
+    ],
+    "assertions": {
+      "monthlyCreditsAreOrdered": true,
+      "monthlyCostsAreOrdered": true,
+      "consumptionRevenueIsOrdered": true
+    }
+  }
+}

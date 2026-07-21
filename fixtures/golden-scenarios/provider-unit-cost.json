@@ -1,0 +1,105 @@
+{
+  "name": "provider and total unit cost are derived from explicit components",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.provider-unit-cost.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.provider-unit-cost.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.provider_cost_example",
+        "monthlyVolume": 100,
+        "unitCostComponents": {
+          "provider": {
+            "inputTokens": 10000,
+            "outputTokens": 5000,
+            "inputRatePerMillion": 1,
+            "outputRatePerMillion": 4
+          },
+          "infrastructureCost": 0.005,
+          "thirdPartyApiCost": 0.003,
+          "otherVariableCost": 0.002
+        },
+        "confidenceAdjustedValue": 4
+      }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "volumeMultiplier": 1,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 0.8
+      },
+      {
+        "key": "base",
+        "volumeMultiplier": 1,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 1
+      },
+      {
+        "key": "high",
+        "volumeMultiplier": 1,
+        "costMultiplier": 1,
+        "providerPriceMultiplier": 1.5
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.provider-unit-cost.v1",
+    "metrics": [
+      {
+        "metricKey": "agent.provider_cost_example",
+        "providerUnitCost": 0.03,
+        "totalUnitCost": 0.04,
+        "costFloorCredits": 14,
+        "valueSupportedCredits": 20,
+        "maximumValueCredits": 40,
+        "recommendedCreditsPerUnit": 20,
+        "status": "FEASIBLE"
+      }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "providerUnitCost": 0.024,
+        "totalUnitCost": 0.034,
+        "monthlyCredits": 2000,
+        "monthlyCost": 3.4,
+        "consumptionRevenue": 20,
+        "grossProfit": 16.6,
+        "grossMargin": 0.83
+      },
+      {
+        "key": "base",
+        "monthlyCredits": 2000,
+        "monthlyCost": 4,
+        "consumptionRevenue": 20,
+        "grossProfit": 16,
+        "grossMargin": 0.8
+      },
+      {
+        "key": "high",
+        "providerUnitCost": 0.045,
+        "totalUnitCost": 0.055,
+        "monthlyCredits": 2000,
+        "monthlyCost": 5.5,
+        "consumptionRevenue": 20,
+        "grossProfit": 14.5,
+        "grossMargin": 0.725
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "estimation succeeds without an adopting product or provider access",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.provider-independent.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.provider-independent.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "custom.vendor_neutral_action",
+        "monthlyVolume": 100,
+        "unitCost": 0.01,
+        "confidenceAdjustedValue": 1
+      }
+    ]
+  },
+  "environment": {
+    "networkAvailable": false,
+    "adoptingProductCredentialsAvailable": false,
+    "providerCredentialsAvailable": false
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.provider-independent.v1",
+    "metrics": [
+      {
+        "metricKey": "custom.vendor_neutral_action",
+        "costFloorCredits": 4,
+        "valueSupportedCredits": 5,
+        "maximumValueCredits": 10,
+        "recommendedCreditsPerUnit": 5,
+        "status": "FEASIBLE"
+      }
+    ],
+    "assertions": {
+      "calculationSucceeds": true,
+      "externalCalls": 0,
+      "requiresProductIdentifiers": false
+    }
+  }
+}

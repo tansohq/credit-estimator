@@ -1,0 +1,140 @@
+{
+  "name": "recommended weight includes an explainable calculation trace",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.calculation-trace.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.calculation-trace.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.trace_example",
+        "monthlyVolume": 10,
+        "unitCost": 0.002,
+        "confidenceAdjustedValue": 0.2
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.calculation-trace.v1",
+    "metrics": [
+      {
+        "metricKey": "agent.trace_example",
+        "costFloorCredits": 1,
+        "valueSupportedCredits": 1,
+        "maximumValueCredits": 2,
+        "recommendedCreditsPerUnit": 1,
+        "expectedUnitRevenue": 0.01,
+        "expectedUnitGrossMargin": 0.8,
+        "status": "FEASIBLE",
+        "warnings": [],
+        "calculationTrace": {
+          "sourceInputs": [
+            {
+              "path": "input.metrics[0].unitCost",
+              "value": 0.002
+            },
+            {
+              "path": "input.metrics[0].confidenceAdjustedValue",
+              "value": 0.2
+            },
+            {
+              "path": "input.assumptions.realizedPricePerCredit",
+              "value": 0.01
+            },
+            {
+              "path": "input.assumptions.targetGrossMargin",
+              "value": 0.7
+            },
+            {
+              "path": "input.assumptions.targetValueCapture",
+              "value": 0.05
+            },
+            {
+              "path": "input.assumptions.maximumValueCapture",
+              "value": 0.1
+            },
+            {
+              "path": "input.assumptions.creditIncrement",
+              "value": 1
+            }
+          ],
+          "steps": [
+            {
+              "key": "costFloorCredits",
+              "formula": "ceil_to_increment(unitCost / (realizedPricePerCredit * (1 - targetGrossMargin)))",
+              "operands": {
+                "unitCost": 0.002,
+                "realizedPricePerCredit": 0.01,
+                "targetGrossMargin": 0.7,
+                "creditIncrement": 1
+              },
+              "result": 1
+            },
+            {
+              "key": "valueSupportedCredits",
+              "formula": "round_to_increment(confidenceAdjustedValue * targetValueCapture / realizedPricePerCredit)",
+              "operands": {
+                "confidenceAdjustedValue": 0.2,
+                "targetValueCapture": 0.05,
+                "realizedPricePerCredit": 0.01,
+                "creditIncrement": 1
+              },
+              "result": 1
+            },
+            {
+              "key": "maximumValueCredits",
+              "formula": "floor_to_increment(confidenceAdjustedValue * maximumValueCapture / realizedPricePerCredit)",
+              "operands": {
+                "confidenceAdjustedValue": 0.2,
+                "maximumValueCapture": 0.1,
+                "realizedPricePerCredit": 0.01,
+                "creditIncrement": 1
+              },
+              "result": 2
+            },
+            {
+              "key": "recommendedCreditsPerUnit",
+              "formula": "max(costFloorCredits, valueSupportedCredits)",
+              "operands": {
+                "costFloorCredits": 1,
+                "valueSupportedCredits": 1
+              },
+              "result": 1
+            },
+            {
+              "key": "expectedUnitRevenue",
+              "formula": "recommendedCreditsPerUnit * realizedPricePerCredit",
+              "operands": {
+                "recommendedCreditsPerUnit": 1,
+                "realizedPricePerCredit": 0.01
+              },
+              "result": 0.01
+            },
+            {
+              "key": "expectedUnitGrossMargin",
+              "formula": "(expectedUnitRevenue - unitCost) / expectedUnitRevenue",
+              "operands": {
+                "expectedUnitRevenue": 0.01,
+                "unitCost": 0.002
+              },
+              "result": 0.8
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

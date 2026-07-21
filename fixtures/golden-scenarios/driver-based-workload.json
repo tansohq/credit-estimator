@@ -1,0 +1,60 @@
+{
+  "name": "driver-based workload produces explicit monthly volume",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.driver-based-workload.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.driver-based-workload.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.driver_forecast_example",
+        "workloadDrivers": {
+          "accounts": 10,
+          "seatsPerAccount": 5,
+          "activeSeatPercentage": 0.8,
+          "actionsPerActiveSeatPerActiveDay": 2,
+          "activeDaysPerMonth": 20,
+          "adoptionPercentage": 0.5,
+          "completionPercentage": 0.9
+        },
+        "unitCost": 0.002,
+        "confidenceAdjustedValue": 0.2
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.driver-based-workload.v1",
+    "metrics": [
+      {
+        "metricKey": "agent.driver_forecast_example",
+        "forecastMethod": "DRIVER_BASED",
+        "monthlyVolume": 720,
+        "costFloorCredits": 1,
+        "valueSupportedCredits": 1,
+        "maximumValueCredits": 2,
+        "recommendedCreditsPerUnit": 1,
+        "status": "FEASIBLE"
+      }
+    ],
+    "baseScenario": {
+      "monthlyCredits": 720,
+      "monthlyCost": 1.44,
+      "consumptionRevenue": 7.2,
+      "grossProfit": 5.76,
+      "grossMargin": 0.8
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "zero monthly usage produces zero scenario totals",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "modelVersion": "golden.zero-usage.v1",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.zero-usage.v1",
+    "assumptions": {
+      "currency": "USD",
+      "realizedPricePerCredit": 0.01,
+      "targetGrossMargin": 0.7,
+      "targetValueCapture": 0.05,
+      "maximumValueCapture": 0.1,
+      "creditIncrement": 1,
+      "planAllocationBuffer": 0.2
+    },
+    "metrics": [
+      {
+        "metricKey": "agent.summarize",
+        "monthlyVolume": 0,
+        "unitCost": 0.002,
+        "confidenceAdjustedValue": 0.2
+      }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "modelVersion": "golden.zero-usage.v1",
+    "baseScenario": {
+      "monthlyCredits": 0,
+      "monthlyCost": 0,
+      "consumptionRevenue": 0,
+      "grossProfit": 0,
+      "grossMargin": 0
+    },
+    "assertions": {
+      "containsInvalidNumber": false,
+      "containsArithmeticError": false
+    }
+  }
+}
