@@ -107,8 +107,9 @@ Optional adapters translate already-fetched product snapshots into
    balances, and credits are never calculated with binary floating point.
 10. Browser and server execution of the same input produce structurally
     identical results.
-11. Runtime forecasting can execute locally. A hosted API may wrap the core,
-    but it is never required by the core or embeddable UI.
+11. Runtime forecasting can execute locally. A future hosted API may wrap the
+    core as a deferred, non-MVP deployment option, but it is never required by
+    the core or embeddable UI.
 12. Presentation packages contain no forecast formulas.
 
 ## Positive consequences

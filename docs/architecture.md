@@ -3,13 +3,14 @@
 ## Status
 
 This document defines the target architecture and implemented primary MVP.
-Schema, core, React UI, JSON/CSV adapters, and the local reference demo exist.
-Product-specific adapters remain deferred.
+Schema, core, React UI, JSON/CSV adapters, the pure Tanso snapshot adapter, and
+the local reference demo exist. Automatic product source connectors remain
+deferred.
 
-The product is an embeddable, customer-facing credit usage forecaster. A SaaS
-company supplies a read-only account snapshot. The estimator calculates
-low/base/high burndown projections. A neutral React package renders those
-results inside the company's dashboard.
+The product is an embeddable, provider-neutral component that forecasts credit
+or usage runway from observed host data. A SaaS company supplies a read-only
+account snapshot. The core calculates low/base/high burndown projections. A
+neutral React package can render those results inside the company's dashboard.
 
 This is not a pricing-design system. It does not recommend credit weights,
 packages, margins, prices, or runtime billing rules.
@@ -34,6 +35,21 @@ Related documents:
 6. Tanso is one optional adapter, not the architecture.
 7. Identical inputs produce structurally identical outputs.
 8. Dates and versions come from the host. The system clock is not an input.
+
+## Delivery model
+
+Implemented paths:
+
+1. **Standalone library:** a host runs the core in a browser or Node.js. The
+   local reference demo shows browser-local composition. No CLI is shipped.
+2. **Result-controlled React widget:** a host supplies matching neutral input
+   and result objects to the UI package.
+3. **Optional Tanso mapping adapter:** a host maps an already-fetched,
+   already-consistent Tanso forecast snapshot plus explicit assumptions into
+   neutral input.
+
+An automatic Tanso source connector and a hosted forecast API are not
+implemented. Both remain deferred, non-MVP deployment options.
 
 ## Ownership
 
@@ -85,8 +101,8 @@ prove the architecture.
 | `packages/core` | `@tansohq/credit-forecast-core` | Validation orchestration, decimal-safe forecast calculations, warnings, traces | Network, filesystem, credentials, React, adapters, product state |
 | `packages/ui-react` | `@tansohq/credit-burndown-react` | Controlled, composable, accessible forecast presentation | Fetching, estimation, authentication, persistence, billing, formulas |
 | `packages/adapters/json` | `@tansohq/credit-forecast-json` | Lossless neutral snapshot/result serialization | Forecast policy |
-| `packages/adapters/csv` | `@tansohq/credit-forecast-csv` | Documented tabular import/export and mapping warnings | Hidden defaults, formulas |
-| `packages/adapters/tanso` | To decide | Optional Tanso-to-neutral snapshot mapping | React, core policy, required credentials in neutral packages |
+| `packages/adapters/csv` | `@tansohq/credit-forecast-csv` | Documented tabular import/export and structured import errors | Hidden defaults, formulas |
+| `packages/adapters/tanso` | `@tansohq/credit-forecast-tanso` | Pure validation and mapping of host-supplied Tanso forecast data into `ForecastInput` | Fetching, credentials, aggregation, inference, sorting, defaults, formulas, React |
 | `apps/demo` | Not published | Reference local calculation and widget composition | New domain behavior |
 
 ## Dependency direction
@@ -381,6 +397,10 @@ flowchart LR
 Removing the Tanso adapter must not change schema, core, fixture, JSON/CSV, or
 React package behavior.
 
+The adapter shown here is implemented. The host still supplies the complete
+source snapshot and every explicit assumption; the adapter does not retrieve
+or manufacture them.
+
 ## React UI contract
 
 The generic widget receives a calculated result. It does not receive an API
@@ -440,52 +460,120 @@ elsewhere and pass the same `ForecastResult`.
 
 Adapters transform data at the edge. The core never discovers or calls them.
 
-### Snapshot import
+### Implemented JSON and CSV adapters
 
 ```ts
-interface ForecastInputImporter<Source> {
-  readonly format: string;
-  import(source: Source): ImportResult<ForecastInput>;
+interface JsonImportIssue {
+  readonly code:
+    | "INVALID_JSON"
+    | "INVALID_FORECAST_INPUT"
+    | "INVALID_FORECAST_RESULT";
+  readonly path: string;
+  readonly message: string;
 }
 
-interface ImportResult<Value> {
-  value?: Value;
-  errors: readonly MappingIssue[];
-  warnings: readonly MappingIssue[];
+declare class JsonImportError extends Error {
+  readonly issues: readonly JsonImportIssue[];
 }
+
+declare function parseForecastInput(source: string): ForecastInput;
+declare function parseForecastResult(source: string): ForecastResult;
+declare function serializeForecastInput(input: ForecastInput): string;
+declare function serializeForecastResult(result: ForecastResult): string;
+
+type CsvBundle = Readonly<Record<string, string>>;
+
+interface CsvImportIssue {
+  readonly code:
+    | "INVALID_CSV"
+    | "MISSING_FILE"
+    | "MISSING_VALUE"
+    | "INVALID_FORECAST";
+  readonly path: string;
+  readonly message: string;
+}
+
+declare class CsvImportError extends Error {
+  readonly issues: readonly CsvImportIssue[];
+}
+
+declare function parseForecastInputCsv(bundle: CsvBundle): ForecastInput;
+declare function parseForecastResultCsv(bundle: CsvBundle): ForecastResult;
+declare function exportForecastInputCsv(input: ForecastInput): CsvBundle;
+declare function exportForecastResultCsv(result: ForecastResult): CsvBundle;
 ```
 
-An importer may normalize column names or product fields. It may not invent a
-missing balance, allocation, date, usage day, lookback, threshold, or
-scenario multiplier.
+Import functions return a fully validated value or throw their documented
+structured import error. They never return a partial value. Export functions
+validate before serializing. The implemented JSON and CSV adapters expose no
+warning result channel.
 
-### Result export
+### Implemented Tanso snapshot adapter
 
 ```ts
-interface ForecastExporter<Artifact> {
-  readonly format: string;
-  export(request: {
-    input: ForecastInput;
-    result: ForecastResult;
-  }): Artifact;
+interface TansoForecastSnapshot {
+  readonly sourceSchemaVersion: "1.0";
+  readonly asOf: ISODate;
+  readonly currentBalance: DecimalString;
+  readonly dailyUsage: readonly {
+    readonly date: ISODate;
+    readonly creditsUsed: DecimalString;
+  }[];
 }
+
+interface TansoForecastAssumptions {
+  readonly schemaVersion: string;
+  readonly methodologyVersion: string;
+  readonly period: {
+    readonly startDate: ISODate;
+    readonly endDate: ISODate;
+    readonly allocation: DecimalString;
+    readonly lowBalanceThreshold: DecimalString;
+  };
+  readonly lookbackDays: number;
+  readonly scheduledBalanceDeltas: readonly {
+    readonly date: ISODate;
+    readonly creditDelta: DecimalString;
+    readonly reason?: string;
+  }[];
+  readonly scenarioMultipliers: {
+    readonly low: DecimalString;
+    readonly base: DecimalString;
+    readonly high: DecimalString;
+  };
+}
+
+interface TansoMappingIssue {
+  readonly code: string;
+  readonly path: string;
+  readonly message: string;
+}
+
+interface TansoMappingFailure {
+  readonly code: "TANSO_MAPPING_FAILED";
+  readonly issues: readonly TansoMappingIssue[];
+}
+
+declare class TansoMappingError extends Error {
+  readonly code: "TANSO_MAPPING_FAILED";
+  readonly issues: readonly TansoMappingIssue[];
+  toJSON(): TansoMappingFailure;
+}
+
+declare function mapTansoSnapshotToForecastInput(
+  snapshot: TansoForecastSnapshot,
+  assumptions: TansoForecastAssumptions,
+): ForecastInput;
 ```
 
-JSON export is lossless. CSV export declares its tables, delimiter, encoding,
-header version, decimal representation, and any omitted nested data. Lossy
-export emits a warning.
-
-### Product snapshot adapter
-
-```ts
-interface ProductSnapshotAdapter<ProductSnapshot> {
-  toForecastInput(snapshot: ProductSnapshot): ImportResult<ForecastInput>;
-}
-```
-
-Product adapters map stable host fields into the neutral contract. Product
-identifiers may be retained only in namespaced extensions. They are never
-required by the core.
+The function returns fully validated neutral input or throws
+`TansoMappingError`; it never returns a partial value. Runtime validation still
+handles untrusted JavaScript values and values passed through TypeScript casts.
+It performs no fetch,
+credential handling, aggregation, inference, sorting, zero-fill, defaulting,
+balance reconstruction, SDK call, forecast formula, or mutation. It emits no
+Tanso UUID or extension. The host must supply ordered, complete daily buckets
+and an explicit schedule, including `[]` when no future delta exists.
 
 ## Namespaced extensions
 
@@ -508,10 +596,11 @@ Portable inputs may carry optional metadata:
 - A value that changes arithmetic belongs in the versioned neutral schema,
   not an extension.
 
-## Optional hosted API
+## Deferred non-MVP hosted API
 
-A generic API is a deployment choice, not an OSS runtime dependency. If one
-is later provided, the minimum operation is:
+A generic API is not implemented. It is a deferred deployment choice, not an
+MVP deliverable or OSS runtime dependency. If one is later provided, the
+minimum operation is:
 
 ```text
 POST /v1/forecasts
@@ -570,6 +659,11 @@ not require it.
 - React components can render a fixture result with no network or core import.
 - Accessible chart data remains understandable without color or pointer input.
 - No neutral package imports Tanso code.
+- The Tanso adapter maps every valid golden input exactly and produces the
+  same core result as direct neutral input.
+- The Tanso adapter works offline, mutates no caller data, emits no Tanso UUID
+  or extension, and has no core, React, SDK, credential, or network runtime
+  dependency.
 
 ## Roadmap ownership
 
@@ -580,8 +674,9 @@ not require it.
 | Browser-compatible forecast core | 2 | Estimator | Implemented |
 | Embeddable React burndown UI | 3 | Estimator | Implemented |
 | JSON/CSV import and export | 4 | Estimator | Implemented |
-| Demo application | 4 | Estimator | Deferred |
-| Optional Tanso snapshot mapping | 5 | Tanso adapter | Deferred |
+| Local reference demo | 4 | Estimator | Implemented locally |
+| Optional Tanso snapshot mapping | 5 | Tanso adapter | Implemented |
+| Automatic Tanso source connector | Later | Adopting product or separate integration | Deferred; not implemented |
 | Product data retrieval and daily aggregation | Adoption | Adopting product | Outside estimator |
 | Dashboard placement, branding, and refresh | Adoption | Adopting product | Outside estimator |
 | Wallet operations and ledger persistence | Adoption | Adopting product | Outside estimator |

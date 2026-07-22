@@ -1,5 +1,22 @@
 import type { CreditBurndownMessages } from "./types.js";
 
+function formatCredits(value: string): string {
+  const negative = value.startsWith("-");
+  const digits = negative ? value.slice(1) : value;
+  const [wholePart, fractionPart = ""] = digits.split(".");
+  const padded = fractionPart.padEnd(3, "0");
+  const keep = padded.slice(0, 2);
+  const roundDigit = padded.charCodeAt(2) - 48;
+  let combined = wholePart + keep;
+  if (roundDigit >= 5) {
+    combined = (BigInt(combined) + 1n).toString().padStart(combined.length, "0");
+  }
+  const wholeOut = combined.slice(0, combined.length - 2) || "0";
+  const fractionOut = combined.slice(combined.length - 2).replace(/0+$/, "");
+  const magnitude = fractionOut === "" ? wholeOut : `${wholeOut}.${fractionOut}`;
+  return negative && BigInt(combined) !== 0n ? `-${magnitude}` : magnitude;
+}
+
 export const defaultCreditBurndownMessages: CreditBurndownMessages = {
   title: "Credit usage forecast",
   summaryTitle: "Forecast summary",
@@ -34,7 +51,7 @@ export const defaultCreditBurndownMessages: CreditBurndownMessages = {
   balanceDeltaHeader: "Balance change",
   endingBalanceHeader: "End balance",
   noWarnings: "No forecast warnings.",
-  calculationTraceSummary: "Show calculation trace",
+  calculationTraceSummary: "How this forecast was calculated",
   sourceInputsTitle: "Source inputs",
   stepsTitle: "Calculation steps",
   formulaLabel: "Formula",
@@ -47,12 +64,12 @@ export const defaultCreditBurndownMessages: CreditBurndownMessages = {
       LOW_BALANCE_PROJECTED: "Low balance projected",
       DEPLETION_PROJECTED: "Depletion projected",
     })[status],
-  creditsValue: (value) => `${value} credits`,
+  creditsValue: (value) => `${formatCredits(value)} credits`,
   utilizationValue: (value) => `${value}× allocation`,
   dayCount: (count) => `${count} ${count === 1 ? "day" : "days"}`,
   periodValue: (startDate, endDate) => `${startDate} to ${endDate} (end exclusive)`,
   chartDescription: (scenarioLabel, endingBalance) =>
-    `${scenarioLabel} scenario projected balance ending at ${endingBalance} credits. Exact values follow in tables.`,
+    `${scenarioLabel} scenario projected balance ending at ${endingBalance} credits. Exact daily values are included in the accessible chart description.`,
   lowBalanceWarning: (scenarioLabel, endingBalance, threshold) =>
     `${scenarioLabel} scenario ends with ${endingBalance} credits, at or below the ${threshold}-credit low-balance threshold.`,
   depletionWarning: (scenarioLabel, depletionDate, shortfall) =>

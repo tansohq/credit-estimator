@@ -67,15 +67,16 @@ The primary composition contract is:
 
 `ForecastInput` and `ForecastResult` are provider-neutral contracts exported
 by `@tansohq/credit-forecast-schema`. The host supplies both objects. It may
-calculate `result` locally:
+calculate `result` locally through the canonical core entry point:
 
 ```ts
-const result = forecast(input);
+const result = forecastCreditUsage(input);
 ```
 
-It may instead receive the same result from its own backend or a generic
-hosted API. The React package does not invoke the forecast calculation, call an
-endpoint, or coordinate an async request.
+It may instead receive the same result from its own backend or a future
+generic hosted API. That API is deferred and non-MVP. The React package does
+not invoke the forecast calculation, call an endpoint, or coordinate an async
+request.
 
 The result is controlled state. New host props replace the rendered snapshot.
 The UI does not mutate `input` or `result`, infer missing values, or recalculate
@@ -90,8 +91,9 @@ own state around the components.
 - `Chart` presents observed usage and projected balance without inventing a
   historical balance the host did not supply.
 - `Scenarios` compares low, base, and high outcomes.
-- `Warnings` presents structured low-balance, depletion, and data-quality
-  warnings from the result.
+- `Warnings` presents structured low-balance and depletion warnings from the
+  result. Invalid input produces a validation failure before the UI receives a
+  result.
 - `Breakdown` explains assumptions and calculation steps already present in
   the result.
 

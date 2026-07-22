@@ -15,6 +15,13 @@ The boundary is:
 
 Removing the Tanso adapter must not affect local forecasting or the generic UI.
 
+The pure mapping package `@tansohq/credit-forecast-tanso` is implemented. It
+maps a host-supplied `TansoForecastSnapshot` plus explicit
+`TansoForecastAssumptions` into validated neutral `ForecastInput`.
+
+An automatic Tanso source connector is not implemented. The mapping package
+does not fetch or assemble a live snapshot.
+
 ## Package and dependency direction
 
 The optional headless adapter lives at:
@@ -36,56 +43,100 @@ returns only provider-neutral forecast input. The core and generic UI never
 import the adapter, a Tanso SDK, a Tanso Java entity, a credential type, or a
 Tanso identifier.
 
-## Adapter responsibility
+## Adapter responsibility and public contract
 
-The headless adapter maps an already-fetched Tanso snapshot into
-`ForecastInput`. The output supplies the same required fields as direct neutral
-input:
+```ts
+interface TansoForecastSnapshot {
+  readonly sourceSchemaVersion: "1.0";
+  readonly asOf: ISODate;
+  readonly currentBalance: DecimalString;
+  readonly dailyUsage: readonly {
+    readonly date: ISODate;
+    readonly creditsUsed: DecimalString;
+  }[];
+}
 
-- `asOf`, the first projected date;
-- `period: { startDate, endDate, allocation, lowBalanceThreshold }`;
-- current balance at the start of `asOf`, taken from Tanso's authoritative
-  balance;
-- complete daily usage history for `[period.startDate, asOf)`, including
-  explicit zero-use days;
-- explicit `lookbackDays`;
-- explicit low, base, and high burn multipliers;
-- explicit dated future balance deltas, when supplied by the host.
+interface TansoForecastAssumptions {
+  readonly schemaVersion: string;
+  readonly methodologyVersion: string;
+  readonly period: {
+    readonly startDate: ISODate;
+    readonly endDate: ISODate;
+    readonly allocation: DecimalString;
+    readonly lowBalanceThreshold: DecimalString;
+  };
+  readonly lookbackDays: number;
+  readonly scheduledBalanceDeltas: readonly {
+    readonly date: ISODate;
+    readonly creditDelta: DecimalString;
+    readonly reason?: string;
+  }[];
+  readonly scenarioMultipliers: {
+    readonly low: DecimalString;
+    readonly base: DecimalString;
+    readonly high: DecimalString;
+  };
+}
 
-The source snapshot may include Tanso grants, deductions, reversals,
-expiration, rollover, and usage records. The adapter maps usage deductions to
-neutral daily usage only when the source meaning is explicit. It may map
-scheduled grants or expirations to future balance deltas. It never derives the
-current source-of-truth balance by replaying those records.
+interface TansoMappingIssue {
+  readonly code: string;
+  readonly path: string;
+  readonly message: string;
+}
 
-The adapter may:
+interface TansoMappingFailure {
+  readonly code: "TANSO_MAPPING_FAILED";
+  readonly issues: readonly TansoMappingIssue[];
+}
 
-- validate that required source fields are present;
-- translate Tanso units and field names into neutral forecast fields;
-- aggregate source records only where the neutral methodology defines the
-  aggregation;
-- reject ambiguous non-usage deductions instead of treating them as usage;
-- map Tanso resources to stable host-defined keys;
-- preserve display-only Tanso metadata in `extensions["com.tanso"]`; and
-- return structured mapping errors for incomplete or incompatible snapshots.
+class TansoMappingError extends Error {
+  readonly code: "TANSO_MAPPING_FAILED";
+  readonly issues: readonly TansoMappingIssue[];
+  toJSON(): TansoMappingFailure;
+}
+
+function mapTansoSnapshotToForecastInput(
+  snapshot: TansoForecastSnapshot,
+  assumptions: TansoForecastAssumptions,
+): ForecastInput;
+```
+
+The host supplies `sourceSchemaVersion: "1.0"`, `asOf`, current balance at the
+start of `asOf`, and complete ordered daily usage. It also supplies explicit
+schema and methodology versions, period boundaries, allocation, threshold,
+lookback, scheduled balance deltas, and low/base/high multipliers. The schedule
+must be present as `[]` when no deltas exist.
+
+The function returns fully validated `ForecastInput` or throws
+`TansoMappingError`. It never returns a partial value. Runtime validation still
+produces the structured error for untrusted JavaScript values or values passed
+through TypeScript casts.
 
 The adapter must not:
 
 - fetch data or acquire credentials;
+- call a Tanso API or SDK;
+- aggregate, infer, or classify source records;
+- sort usage buckets or scheduled deltas;
+- zero-fill missing days or default any input;
+- reconstruct the current balance;
 - call Tanso from the forecast core or React UI;
 - change Tanso balances, grants, deductions, or usage records;
 - create a wallet, transaction, subscription, payment, or top-up;
 - persist a forecast or runtime metric event;
 - change product configuration;
-- infer missing forecast or usage inputs silently;
-- implement forecast formulas that belong in the core; or
+- infer usage from generic credit transactions, transaction descriptions,
+  labels, or deduction amounts;
+- implement forecast formulas that belong in the core;
+- emit Tanso UUIDs or namespaced extensions; or
 - make Tanso availability a dependency after the host has assembled a local
   snapshot.
 
-The embedding host owns authentication, Tanso API calls, retries, caching,
-refresh behavior, and error presentation. A separately configured host client
-may fetch the source snapshot, but it is not part of the neutral forecast core
-or generic React package.
+The embedding host owns event collection, source-of-truth classification,
+authentication, Tanso API calls, retries, caching, refresh behavior, and error
+presentation. A separately configured host client may fetch the source
+snapshot, but it is not part of the neutral forecast core or generic React
+package.
 
 ## Neutral contract
 
@@ -96,8 +147,7 @@ It includes:
 - `methodologyVersion`;
 - ISO 8601 date-only period and observation values (`YYYY-MM-DD`);
 - the explicit balance and usage snapshot required by the methodology;
-- explicit low, base, and high scenario assumptions; and
-- optional namespaced extensions that do not change neutral calculations.
+- explicit low, base, and high scenario assumptions.
 
 Portable JSON encodes decimal quantities as canonical base-10 strings. Count
 fields such as `lookbackDays` remain JSON integers. The adapter must not emit
@@ -109,28 +159,30 @@ The resulting `ForecastResult` echoes `schemaVersion` and
 wants to show when it fetched the source data, that retrieval time stays in
 host presentation state outside the deterministic payload.
 
-Neutral schemas require no Tanso UUID. A host may maintain a lookup from its
-stable keys to Tanso resources. Tanso identifiers needed for display or
-diagnostics may remain outside the neutral payload or appear under the Tanso
-extension namespace:
+Neutral schemas require no Tanso UUID. The implemented adapter emits neither
+Tanso identifiers nor extensions. Host-only identifiers remain outside the
+deterministic payload.
 
-```json
-{
-  "extensions": {
-    "com.tanso": {
-      "sourceRef": "adapter-managed-reference"
-    }
-  }
-}
-```
+## Why source retrieval is separate
 
-The core ignores unknown extensions. Any value that changes a forecast must
-be represented by a documented neutral field.
+The mapping boundary is intentionally narrower than a live Tanso connector:
+
+- a live Tanso balance is request-time state, not necessarily the balance at
+  the start of the requested `asOf` date;
+- allocation periods and amounts can be ambiguous, especially for historical
+  forecasts; and
+- the current public SDK does not expose a trustworthy, complete daily
+  credit-use snapshot for the required observed interval.
+
+The repository therefore does not claim a source endpoint exists. A host must
+assemble and verify these inputs from its own authoritative context. Parsing
+generic transactions, descriptions, labels, or deduction amounts is not a
+supported substitute.
 
 ## Data flow
 
 ```text
-Tanso APIs or local Tanso state
+Host-owned Tanso source integration (not included)
         |
         | host fetches and authorizes
         v
@@ -194,6 +246,8 @@ the neutral component package.
 
 ## Integration verification
 
+The implemented adapter is verified to:
+
 - Run adapter mapping tests from recorded or synthetic Tanso snapshots without
   network access.
 - Assert neutral output requires no Tanso UUID.
@@ -204,8 +258,8 @@ the neutral component package.
 - Verify source records and caller-owned objects are not mutated.
 - Verify mapping failures are structured and do not silently drop
   calculation-relevant data.
-- Verify the core and React packages install and run with the Tanso adapter
-  absent.
+- Verify core and React dependency manifests and package contents contain no
+  Tanso adapter dependency.
 - Verify the adapter package imports neither React nor the UI package.
 - Verify no integration path writes balances, creates top-ups, or changes
   product configuration.

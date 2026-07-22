@@ -2,10 +2,10 @@
 
 ## Executive summary
 
-The Credit Burndown Forecaster is an open-source, product-neutral component
-that companies embed in customer dashboards. It turns a host-supplied credit
-snapshot and daily usage history into understandable low, base, and high
-burndown forecasts.
+The Credit Burndown Forecaster is an embeddable, provider-neutral component
+that forecasts credit or usage runway from observed host data. Companies can
+embed it in customer dashboards or run the same deterministic core as a
+standalone browser or Node.js library.
 
 Customers see how quickly they are using credits, whether credits will last
 through the current period, when depletion is likely, and how much risk exists
@@ -20,9 +20,19 @@ A company can add a trustworthy credit forecast to its dashboard without
 giving the forecaster control of balances, billing, usage events, or customer
 accounts.
 
-The same explicit input produces the same result in a browser, server,
-command-line tool, test, or compatible hosted wrapper. Live customer views do
-not require an estimator service or network call when the core runs locally.
+The same explicit input produces the same result in a browser, Node.js process,
+test, or compatible host backend. Live customer views do not require an
+estimator service or network call when the core runs locally.
+
+The delivery model has three implemented paths:
+
+1. standalone browser or Node.js library execution, including the local demo;
+2. a result-controlled React widget; and
+3. an optional pure Tanso adapter that maps a complete host-supplied snapshot
+   and explicit assumptions into neutral input.
+
+Standalone does not mean a shipped CLI. No CLI or hosted forecast API is part
+of the MVP. No automatic Tanso source connector is included.
 
 ## Users
 
@@ -175,10 +185,14 @@ network logic.
 
 ### Later delivery
 
-- Optional hosted reference application
-- Optional Tanso and other product adapters
+- Automatic Tanso source retrieval and other product adapters
+- Optional hosted API wrapper as a deferred, non-MVP deployment choice
 - Additional framework wrappers when committed adopters require them
 - Package registry publication and public contribution policy
+
+The pure Tanso mapping adapter is implemented. Current integrations must still
+supply complete, ordered neutral daily usage buckets, the start-of-`asOf`
+balance, and all forecast assumptions. Source retrieval remains host-owned.
 
 ## Explicit exclusions
 
@@ -228,8 +242,10 @@ not use `modelVersion`.
 | Future balance deltas | Forecast-only application | Supplies and executes real changes | Core MVP |
 | Embeddable React UI | Neutral accessible presentation | Embeds, themes, and supplies data | Primary MVP |
 | JSON/CSV adapters | Neutral serialization mapping | Imports or exports product data | Implemented |
-| Hosted reference app | Demonstrates local integration | Deploys if useful | Implemented locally |
-| Tanso adapter | Maps neutral snapshot and result | Owns Tanso credentials and APIs | Later |
+| Local reference demo | Demonstrates browser-local integration | Runs or deploys it if useful | Implemented locally |
+| Tanso OSS adapter | Validates and maps an already-fetched, already-consistent Tanso forecast snapshot plus explicit assumptions | Owns source data, credentials, aggregation, consistency, and APIs | Implemented |
+| Automatic Tanso source connector | — | Fetches and assembles trustworthy source inputs | Deferred; not implemented |
+| Optional hosted API | Wraps the same neutral core without new formulas | Owns deployment, authentication, and operations | Deferred; non-MVP |
 | Balance and allocation truth | — | Full ownership | Outside |
 | Usage events and persistence | — | Full ownership | Outside |
 | Wallets and ledgers | — | Full ownership | Outside |
@@ -256,15 +272,14 @@ not use `modelVersion`.
 - `@tansohq/credit-forecast-core` runs in a browser without product SDKs.
 - `@tansohq/credit-burndown-react` can be embedded without Tanso and without
   owning authentication, networking, persistence, billing, or CTA behavior.
-- Tanso integration can be added without changing neutral schemas or core
-  calculations.
+- The optional Tanso mapping adapter can be removed without changing neutral
+  schemas, core calculations, JSON/CSV exchange, or the React UI.
 - An adopting team can integrate its snapshot and render a useful forecast
   without rebuilding forecast formulas.
 
 ## Open decisions
 
-- Exact JSON Schema/Zod validation-error representation
-- CSV table layout and lossless-versus-lossy guarantees
+- Whether authoritative Tanso source APIs will support an automatic connector
 - Chart rendering dependency and bundle-size budget
 - License and package-release process
 - Minimum browser support

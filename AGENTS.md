@@ -2,8 +2,9 @@
 
 ## Mission
 
-Build a product-neutral, customer-facing credit usage and burndown forecaster.
-Companies embed it in their dashboards so customers can understand:
+Build an embeddable, provider-neutral component that forecasts credit or usage
+runway from observed host data. Companies embed it in their dashboards so
+customers can understand:
 
 - usage so far;
 - current burn rate;
@@ -19,6 +20,18 @@ quotes.
 
 Tanso is one optional adapter, not the architecture. The core and generic UI
 must work without Tanso, credentials, or network access.
+
+The delivery model has three implemented paths:
+
+1. a standalone browser or Node.js library, demonstrated by the local app;
+2. a result-controlled React widget; and
+3. an optional pure Tanso adapter that maps a host-supplied snapshot and
+   explicit assumptions into neutral `ForecastInput`.
+
+Standalone means local library execution and the local reference demo. The
+repository does not ship a CLI or hosted forecast API. A hosted API remains a
+deferred, non-MVP deployment option. An automatic Tanso source connector is
+also deferred; the implemented adapter never fetches Tanso data.
 
 ## Before changing the repository
 
@@ -46,7 +59,6 @@ The neutral input includes:
   `[period.startDate, asOf)`, including zero-use days;
 - explicit `lookbackDays`;
 - explicit low, base, and high burn multipliers;
-- an explicit low-balance threshold; and
 - optional dated future balance deltas.
 
 Missing forecast inputs are validation errors. Do not silently default them.
@@ -143,7 +155,9 @@ Target packages:
 - `@tansohq/credit-burndown-react`: optional controlled React components for
   embedding the forecast in a customer dashboard;
 - delivery adapters for JSON and CSV snapshots; and
-- optional product adapters, including Tanso.
+- `@tansohq/credit-forecast-tanso`: optional pure mapping from an
+  already-fetched Tanso forecast snapshot and explicit host assumptions into
+  neutral `ForecastInput`.
 
 Dependency rules:
 
@@ -156,8 +170,18 @@ Dependency rules:
 - Hosts inject snapshot data and handle refreshes, exports, and actions.
 - Tanso-specific identifiers, credentials, copy, and behavior belong only in
   an optional Tanso adapter.
+- The Tanso mapping adapter is implemented. It accepts only already-fetched,
+  already-consistent data and explicit forecast assumptions. It does not
+  fetch, aggregate, infer, sort, zero-fill, default, or reconstruct inputs.
+- No automatic Tanso source connector or Tanso API client is implemented. The
+  host supplies the source-of-truth balance at the start of `asOf`, complete
+  ordered daily usage buckets, period context, schedule, and scenario
+  assumptions.
+- Never infer usage from generic credit transactions, descriptions, labels,
+  or deduction amounts.
 - Neutral schemas must not require Tanso UUIDs or product-specific entities.
-- Product-specific metadata belongs under namespaced extensions and must not
+- The implemented Tanso adapter emits no UUIDs or extensions. Future
+  product-specific metadata belongs under namespaced extensions and must not
   change neutral forecast semantics.
 
 ## MVP sequence
@@ -166,7 +190,10 @@ Dependency rules:
 2. Make every golden fixture pass in the pure core.
 3. Build `@tansohq/credit-burndown-react` as the primary customer-facing MVP.
 4. Add JSON and CSV import/export adapters.
-5. Add an optional hosted reference application and product adapters.
+5. Build the local reference demo.
+6. Add optional product adapters only after their host data contracts are
+   explicit. The pure Tanso snapshot mapper now satisfies this boundary; an
+   automatic Tanso source connector remains deferred.
 
 Do not duplicate forecast formulas in the UI. The UI presents core results.
 

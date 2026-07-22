@@ -1,7 +1,7 @@
 # Credit Burndown Forecaster
 
-Open-source, product-neutral credit usage forecasting for SaaS customer
-dashboards.
+An embeddable, provider-neutral component that forecasts credit or usage
+runway from observed host data.
 
 A host supplies current balance, period allocation, complete daily usage, and
 explicit low/base/high burn assumptions. The deterministic core projects
@@ -10,6 +10,21 @@ package renders the result inside the host's dashboard.
 
 The estimator is read-only. It does not own wallets, ledgers, usage events,
 entitlements, subscriptions, payments, or customer actions.
+
+## Delivery model
+
+Implemented paths:
+
+1. **Standalone library:** run the deterministic core in a browser or Node.js.
+   The local demo shows browser-only integration.
+2. **Result-controlled React widget:** calculate in the host, then pass neutral
+   input and result objects into the component package.
+3. **Optional Tanso snapshot adapter:** map an already-fetched,
+   already-consistent Tanso forecast snapshot plus explicit assumptions into
+   validated neutral input.
+
+No CLI, hosted forecast API, or automatic Tanso source connector ships in the
+MVP.
 
 ## Packages
 
@@ -20,6 +35,7 @@ entitlements, subscriptions, payments, or customer actions.
 | `@tansohq/credit-burndown-react` | Controlled, accessible React components |
 | `@tansohq/credit-forecast-json` | Deterministic JSON import and export |
 | `@tansohq/credit-forecast-csv` | Portable multi-file CSV import and export |
+| `@tansohq/credit-forecast-tanso` | Pure optional Tanso snapshot-to-neutral mapping |
 
 These packages currently live in this pnpm workspace and are not published to
 npm yet.
@@ -37,7 +53,7 @@ corepack enable
 pnpm install
 ```
 
-## Calculate locally
+## Run the standalone library
 
 ```ts
 import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
@@ -84,14 +100,16 @@ traces, and host-owned JSON export.
 
 ## Embed the React UI
 
-The host calculates or fetches the neutral result, then passes both snapshots
-to the result-controlled component.
+The host calculates the neutral result in its browser or Node.js process, then
+passes both objects to the result-controlled component. A host may instead
+calculate on its own backend and pass the same result to its frontend.
 
 ```tsx
-import {
-  CreditBurndown,
-} from "@tansohq/credit-burndown-react";
+import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import { CreditBurndown } from "@tansohq/credit-burndown-react";
 import "@tansohq/credit-burndown-react/styles.css";
+
+const result = forecastCreditUsage(input);
 
 <CreditBurndown.Root input={input} result={result}>
   <CreditBurndown.Summary />
@@ -106,6 +124,69 @@ The package has no fetch, authentication, persistence, billing, or Tanso
 dependency. Hosts can inject actions, override typed messages, control the
 selected scenario, and theme semantic `--credit-burndown-*` CSS variables.
 React peers are `^18.2 || ^19`.
+
+## Optional Tanso integration
+
+`@tansohq/credit-forecast-tanso` maps two host-supplied objects into the same
+validated `ForecastInput` used by every other host. Within this workspace:
+
+```ts
+import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import {
+  mapTansoSnapshotToForecastInput,
+  type TansoForecastAssumptions,
+  type TansoForecastSnapshot,
+} from "@tansohq/credit-forecast-tanso";
+
+const snapshot: TansoForecastSnapshot = {
+  sourceSchemaVersion: "1.0",
+  asOf: "2026-01-03",
+  currentBalance: "400",
+  dailyUsage: [
+    { date: "2026-01-01", creditsUsed: "40" },
+    { date: "2026-01-02", creditsUsed: "60" },
+  ],
+};
+
+const assumptions: TansoForecastAssumptions = {
+  schemaVersion: "1.0",
+  methodologyVersion: "1.0",
+  period: {
+    startDate: "2026-01-01",
+    endDate: "2026-01-06",
+    allocation: "500",
+    lowBalanceThreshold: "50",
+  },
+  lookbackDays: 2,
+  scheduledBalanceDeltas: [],
+  scenarioMultipliers: { low: "0.75", base: "1", high: "1.5" },
+};
+
+const input = mapTansoSnapshotToForecastInput(snapshot, assumptions);
+const result = forecastCreditUsage(input);
+```
+
+The mapping function is exactly:
+
+```ts
+function mapTansoSnapshotToForecastInput(
+  snapshot: TansoForecastSnapshot,
+  assumptions: TansoForecastAssumptions,
+): ForecastInput;
+```
+
+It performs no fetch, authentication, aggregation, inference, sorting,
+zero-filling, defaulting, balance reconstruction, SDK call, or forecast
+calculation. Missing or inconsistent data throws `TansoMappingError`; its
+`toJSON()` method returns `{ code: "TANSO_MAPPING_FAILED", issues }`.
+Runtime validation still protects JavaScript callers and TypeScript callers
+that pass untrusted values through a cast.
+
+The host must fetch and assemble the snapshot. Never derive daily usage by
+parsing generic transactions, descriptions, labels, or deduction amounts.
+Tanso credentials, API calls, identifiers, wallet state, and actions remain
+outside the adapter, core, and React packages. See the
+[optional Tanso boundary](docs/tanso-integration.md).
 
 ## JSON and CSV exchange
 
@@ -163,5 +244,6 @@ controlled composition, chart table equivalents, and SSR-safe rendering.
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-Tanso remains an optional future adapter. A hosted API, runtime wallet
-operations, and product-specific integrations are deferred.
+Tanso remains an optional edge adapter. Its automatic source connector, a
+hosted API, runtime wallet operations, and other product-specific integrations
+are deferred.

@@ -2,6 +2,7 @@ import {
   useId,
   useMemo,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import type {
@@ -162,15 +163,27 @@ export function CreditBurndownSummary({ className }: CreditBurndownSectionProps)
   const { input, result, selectedScenario, headingLevel, messages } = useCreditBurndown();
   const headingId = useId();
   const Heading = headingTag(nestedHeadingLevel(headingLevel));
+  const scenarioLabel = messages.scenarioLabel(selectedScenario.key);
+  const outcomeLabel = selectedScenario.depletionDate === null
+    ? messages.endingBalanceLabel
+    : messages.depletionDateLabel;
+  const outcomeValue = selectedScenario.depletionDate === null
+    ? messages.creditsValue(selectedScenario.endingBalance)
+    : selectedScenario.depletionDate;
 
   return (
     <section
       className={classNames("credit-burndown-section credit-burndown-summary", className)}
       aria-labelledby={headingId}
     >
-      <Heading id={headingId} className="credit-burndown-heading">
+      <Heading id={headingId} className="credit-burndown-sr-only">
         {messages.summaryTitle}
       </Heading>
+      <div className="credit-burndown-outcome">
+        <span className="credit-burndown-outcome-scenario">{scenarioLabel}</span>
+        <span className="credit-burndown-outcome-label">{outcomeLabel}</span>
+        <strong>{outcomeValue}</strong>
+      </div>
       <dl className="credit-burndown-summary-grid">
         <div className="credit-burndown-stat">
           <dt>{messages.currentBalanceLabel}</dt>
@@ -185,23 +198,8 @@ export function CreditBurndownSummary({ className }: CreditBurndownSectionProps)
           <dd>{messages.creditsValue(result.baselineDailyBurn)}</dd>
         </div>
         <div className="credit-burndown-stat">
-          <dt>{messages.endingBalanceLabel}</dt>
-          <dd>{messages.creditsValue(selectedScenario.endingBalance)}</dd>
-        </div>
-        {selectedScenario.depletionDate !== null && (
-          <div className="credit-burndown-stat">
-            <dt>{messages.depletionDateLabel}</dt>
-            <dd>{selectedScenario.depletionDate}</dd>
-          </div>
-        )}
-        <div className="credit-burndown-stat">
-          <dt>{messages.statusLabel}</dt>
-          <dd className={statusClass(selectedScenario.status)}>
-            <span aria-hidden="true" className="credit-burndown-status-symbol">
-              {statusSymbol(selectedScenario.status)}
-            </span>
-            {messages.statusText(selectedScenario.status)}
-          </dd>
+          <dt>{messages.periodLabel}</dt>
+          <dd>{messages.periodValue(input.period.startDate, input.period.endDate)}</dd>
         </div>
       </dl>
     </section>
@@ -258,7 +256,10 @@ export function CreditBurndownScenarios({ className }: CreditBurndownSectionProp
                 aria-describedby={detailsId}
               />
               <span className="credit-burndown-scenario-label">{label}</span>
-              <span id={detailsId} className="credit-burndown-scenario-details">
+              <span className="credit-burndown-scenario-balance">
+                {messages.creditsValue(scenario.endingBalance)}
+              </span>
+              <span id={detailsId} className="credit-burndown-sr-only">
                 <span className={statusClass(scenario.status)}>
                   <span aria-hidden="true" className="credit-burndown-status-symbol">
                     {statusSymbol(scenario.status)}
@@ -283,6 +284,10 @@ export function CreditBurndownScenarios({ className }: CreditBurndownSectionProp
 interface ChartCoordinates {
   points: string;
   zeroY: number;
+  firstX: number;
+  firstY: number;
+  lastX: number;
+  lastY: number;
 }
 
 const chartDecimalScale = 1_000_000_000_000n;
@@ -298,7 +303,13 @@ function decimalToScaledInteger(value: string): bigint {
   return negative ? -scaled : scaled;
 }
 
-function chartCoordinates(values: readonly string[]): ChartCoordinates {
+function chartCoordinates(
+  values: readonly string[],
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+): ChartCoordinates {
   const scaledValues = values.map(decimalToScaledInteger);
   let minimum = 0n;
   let maximum = 0n;
@@ -307,21 +318,31 @@ function chartCoordinates(values: readonly string[]): ChartCoordinates {
     if (value > maximum) maximum = value;
   }
   const span = maximum - minimum || 1n;
-  const left = 36;
-  const right = 684;
-  const top = 20;
-  const bottom = 220;
   const denominator = Math.max(1, scaledValues.length - 1);
   const y = (value: bigint) => {
     const ratio = Number(((value - minimum) * chartRatioScale) / span) /
       Number(chartRatioScale);
     return bottom - ratio * (bottom - top);
   };
-  const points = scaledValues
-    .map((value, index) => `${left + (index / denominator) * (right - left)},${y(value)}`)
-    .join(" ");
+  const projectedPoints = scaledValues.map((value, index) => ({
+    x: left + (index / denominator) * (right - left),
+    y: y(value),
+  }));
+  const first = projectedPoints[0];
+  const last = projectedPoints.at(-1);
 
-  return { points, zeroY: y(0n) };
+  if (first === undefined || last === undefined) {
+    throw new Error("Chart requires at least one projected balance value");
+  }
+
+  return {
+    points: projectedPoints.map(({ x, y: pointY }) => `${x},${pointY}`).join(" "),
+    zeroY: y(0n),
+    firstX: first.x,
+    firstY: first.y,
+    lastX: last.x,
+    lastY: last.y,
+  };
 }
 
 export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
@@ -329,12 +350,38 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
   const headingId = useId();
   const chartTitleId = useId();
   const chartDescriptionId = useId();
+  const chartDataId = useId();
   const Heading = headingTag(nestedHeadingLevel(headingLevel));
   const scenarioLabel = messages.scenarioLabel(selectedScenario.key);
+  const chartViewBoxWidth = 760;
+  const chartLeft = 32;
+  const chartRight = 728;
+  const timelineWidth = chartRight - chartLeft;
+  const observedDayCount = result.observedPoints.length;
+  const totalDayCount = observedDayCount + result.daysRemaining;
+  const forecastStartRatio = observedDayCount / totalDayCount;
+  const forecastStartX = chartLeft + forecastStartRatio * timelineWidth;
   const coordinates = chartCoordinates([
     input.balance.current,
     ...selectedScenario.points.map(({ endingBalance }) => endingBalance),
-  ]);
+  ], forecastStartX, chartRight, 36, 142);
+  const observedValues = result.observedPoints.map(({ creditsUsed }) =>
+    decimalToScaledInteger(creditsUsed));
+  const maximumObserved = observedValues.reduce(
+    (maximum, value) => value > maximum ? value : maximum,
+    0n,
+  ) || 1n;
+  const observedSlotWidth = (forecastStartX - chartLeft) / observedDayCount;
+  const observedBarWidth = Math.max(2, Math.min(14, observedSlotWidth * 0.48));
+  const forecastStartViewBoxRatio = forecastStartX / chartViewBoxWidth;
+  const forecastStartLabelAlignment = forecastStartViewBoxRatio < 0.25
+    ? "start"
+    : forecastStartViewBoxRatio > 0.75
+      ? "end"
+      : "center";
+  const chartContextStyle = {
+    "--credit-burndown-forecast-start-position": `${forecastStartViewBoxRatio * 100}%`,
+  } as CSSProperties;
 
   return (
     <section
@@ -344,24 +391,64 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
       <Heading id={headingId} className="credit-burndown-heading">
         {messages.chartTitle}
       </Heading>
-      <p className="credit-burndown-chart-summary">
+      <p className="credit-burndown-chart-summary" id={chartDescriptionId}>
         {messages.chartDescription(scenarioLabel, selectedScenario.endingBalance)}
       </p>
+      <div className="credit-burndown-chart-legend" aria-hidden="true">
+        <span>
+          <span className="credit-burndown-chart-key credit-burndown-chart-key--observed" />
+          {messages.observedTableCaption}
+        </span>
+        <span>
+          <span className="credit-burndown-chart-key credit-burndown-chart-key--projected" />
+          {messages.projectedTableCaption(scenarioLabel)}
+        </span>
+      </div>
       <svg
         className="credit-burndown-chart-svg"
-        viewBox="0 0 720 240"
+        viewBox="0 0 760 226"
         role="img"
-        aria-labelledby={`${chartTitleId} ${chartDescriptionId}`}
-        preserveAspectRatio="none"
+        aria-labelledby={chartTitleId}
+        aria-describedby={`${chartDescriptionId} ${chartDataId}`}
+        preserveAspectRatio="xMidYMid meet"
       >
         <title id={chartTitleId}>{messages.chartTitle}</title>
-        <desc id={chartDescriptionId}>
-          {messages.chartDescription(scenarioLabel, selectedScenario.endingBalance)}
-        </desc>
+        <rect
+          className="credit-burndown-chart-observed-zone"
+          x={chartLeft}
+          y="28"
+          width={forecastStartX - chartLeft}
+          height="190"
+        />
+        <rect
+          className="credit-burndown-chart-projected-zone"
+          x={forecastStartX}
+          y="28"
+          width={chartRight - forecastStartX}
+          height="190"
+        />
+        {observedValues.map((value, index) => {
+          const heightRatio = Number((value * chartRatioScale) / maximumObserved) /
+            Number(chartRatioScale);
+          const x = chartLeft + observedSlotWidth * index +
+            (observedSlotWidth - observedBarWidth) / 2;
+          const height = heightRatio * 48;
+
+          return (
+            <rect
+              className="credit-burndown-chart-observed-bar"
+              x={x}
+              y={204 - height}
+              width={observedBarWidth}
+              height={height}
+              key={result.observedPoints[index]?.date}
+            />
+          );
+        })}
         <line
           className="credit-burndown-chart-zero"
-          x1="36"
-          x2="684"
+          x1={forecastStartX}
+          x2={chartRight}
           y1={coordinates.zeroY}
           y2={coordinates.zeroY}
         />
@@ -370,65 +457,75 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
           points={coordinates.points}
           fill="none"
         />
+        <circle
+          className="credit-burndown-chart-point"
+          cx={coordinates.firstX}
+          cy={coordinates.firstY}
+          r="4"
+        />
+        <circle
+          className="credit-burndown-chart-point"
+          cx={coordinates.lastX}
+          cy={coordinates.lastY}
+          r="4"
+        />
+        <line
+          className="credit-burndown-chart-forecast-start"
+          x1={forecastStartX}
+          x2={forecastStartX}
+          y1="12"
+          y2="224"
+        />
+        <line
+          className="credit-burndown-chart-horizon"
+          x1={chartLeft}
+          x2={chartRight}
+          y1="224"
+          y2="224"
+        />
       </svg>
-
-      <div
-        className="credit-burndown-table-scroll"
-        role="region"
-        aria-label={messages.observedTableCaption}
-        tabIndex={0}
-      >
-        <table className="credit-burndown-table">
-          <caption>{messages.observedTableCaption}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{messages.dateHeader}</th>
-              <th scope="col">{messages.dailyUsageHeader}</th>
-              <th scope="col">{messages.cumulativeUsageHeader}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.observedPoints.map((point) => (
-              <tr key={point.date}>
-                <th scope="row">{point.date}</th>
-                <td>{messages.creditsValue(point.creditsUsed)}</td>
-                <td>{messages.creditsValue(point.cumulativeCreditsUsed)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="credit-burndown-sr-only" id={chartDataId}>
+        <p>{messages.observedTableCaption}</p>
+        <ul>
+          {result.observedPoints.map((point) => (
+            <li key={point.date}>
+              {messages.dateHeader}: {point.date}. {messages.dailyUsageHeader}:{" "}
+              {messages.creditsValue(point.creditsUsed)}.{" "}
+              {messages.cumulativeUsageHeader}:{" "}
+              {messages.creditsValue(point.cumulativeCreditsUsed)}.
+            </li>
+          ))}
+        </ul>
+        <p>{messages.projectedTableCaption(scenarioLabel)}</p>
+        <ul>
+          {selectedScenario.points.map((point) => (
+            <li key={point.date}>
+              {messages.dateHeader}: {point.date}. {messages.startBalanceHeader}:{" "}
+              {messages.creditsValue(point.startBalance)}. {messages.balanceDeltaHeader}:{" "}
+              {messages.creditsValue(point.balanceDelta)}. {messages.dailyUsageHeader}:{" "}
+              {messages.creditsValue(point.creditsUsed)}. {messages.endingBalanceHeader}:{" "}
+              {messages.creditsValue(point.endingBalance)}.
+            </li>
+          ))}
+        </ul>
       </div>
-
-      <div
-        className="credit-burndown-table-scroll"
-        role="region"
-        aria-label={messages.projectedTableCaption(scenarioLabel)}
-        tabIndex={0}
-      >
-        <table className="credit-burndown-table">
-          <caption>{messages.projectedTableCaption(scenarioLabel)}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{messages.dateHeader}</th>
-              <th scope="col">{messages.startBalanceHeader}</th>
-              <th scope="col">{messages.balanceDeltaHeader}</th>
-              <th scope="col">{messages.dailyUsageHeader}</th>
-              <th scope="col">{messages.endingBalanceHeader}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {selectedScenario.points.map((point) => (
-              <tr key={point.date}>
-                <th scope="row">{point.date}</th>
-                <td>{messages.creditsValue(point.startBalance)}</td>
-                <td>{messages.creditsValue(point.balanceDelta)}</td>
-                <td>{messages.creditsValue(point.creditsUsed)}</td>
-                <td>{messages.creditsValue(point.endingBalance)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <dl className="credit-burndown-chart-context" style={chartContextStyle}>
+        <div>
+          <dt className="credit-burndown-sr-only">{messages.periodLabel}</dt>
+          <dd>{input.period.startDate}</dd>
+        </div>
+        <div
+          className="credit-burndown-chart-context-forecast-start"
+          data-credit-burndown-alignment={forecastStartLabelAlignment}
+        >
+          <dt>{messages.asOfLabel}</dt>
+          <dd>{result.asOf}</dd>
+        </div>
+        <div className="credit-burndown-chart-context-end">
+          <dt className="credit-burndown-sr-only">{messages.periodLabel}</dt>
+          <dd>{input.period.endDate}</dd>
+        </div>
+      </dl>
     </section>
   );
 }
@@ -458,6 +555,7 @@ export function CreditBurndownWarnings({ className }: CreditBurndownSectionProps
           {result.warnings.map((warning) => (
             <li
               className="credit-burndown-warning"
+              data-credit-burndown-warning={warning.code}
               key={`${warning.code}-${warning.scenarioKey}`}
             >
               <span aria-hidden="true" className="credit-burndown-status-symbol">!</span>
@@ -476,62 +574,132 @@ export function CreditBurndownWarnings({ className }: CreditBurndownSectionProps
 
 export function CreditBurndownBreakdown({ className }: CreditBurndownSectionProps) {
   const { input, result, selectedScenario, headingLevel, messages } = useCreditBurndown();
-  const headingId = useId();
   const SectionHeading = headingTag(nestedHeadingLevel(headingLevel));
   const DetailHeading = headingTag(nestedHeadingLevel(nestedHeadingLevel(headingLevel)));
   const StepHeading = headingTag(
     nestedHeadingLevel(nestedHeadingLevel(nestedHeadingLevel(headingLevel))),
   );
+  const scenarioLabel = messages.scenarioLabel(selectedScenario.key);
 
   return (
-    <section
-      className={classNames("credit-burndown-section credit-burndown-breakdown", className)}
-      aria-labelledby={headingId}
+    <details
+      className={classNames(
+        "credit-burndown-section credit-burndown-breakdown credit-burndown-trace",
+        className,
+      )}
     >
-      <SectionHeading id={headingId} className="credit-burndown-heading">
-        {messages.breakdownTitle}
-      </SectionHeading>
-      <dl className="credit-burndown-breakdown-grid">
-        <div>
-          <dt>{messages.periodLabel}</dt>
-          <dd>{messages.periodValue(input.period.startDate, input.period.endDate)}</dd>
-        </div>
-        <div>
-          <dt>{messages.asOfLabel}</dt>
-          <dd>{result.asOf}</dd>
-        </div>
-        <div>
-          <dt>{messages.allocationLabel}</dt>
-          <dd>{messages.creditsValue(input.period.allocation)}</dd>
-        </div>
-        <div>
-          <dt>{messages.lookbackLabel}</dt>
-          <dd>{messages.dayCount(input.lookbackDays)}</dd>
-        </div>
-        <div>
-          <dt>{messages.dailyBurnLabel}</dt>
-          <dd>{messages.creditsValue(selectedScenario.dailyBurn)}</dd>
-        </div>
-        <div>
-          <dt>{messages.projectedUsageLabel}</dt>
-          <dd>{messages.creditsValue(selectedScenario.projectedCreditsUsed)}</dd>
-        </div>
-        <div>
-          <dt>{messages.projectedConsumptionLabel}</dt>
-          <dd>{messages.creditsValue(selectedScenario.projectedPeriodConsumption)}</dd>
-        </div>
-        <div>
-          <dt>{messages.utilizationLabel}</dt>
-          <dd>{messages.utilizationValue(selectedScenario.utilization)}</dd>
-        </div>
-        <div>
-          <dt>{messages.shortfallLabel}</dt>
-          <dd>{messages.creditsValue(selectedScenario.shortfall)}</dd>
-        </div>
-      </dl>
+      <summary>{messages.calculationTraceSummary}</summary>
+      <div className="credit-burndown-trace-content">
+        <SectionHeading className="credit-burndown-heading">
+          {messages.breakdownTitle}
+        </SectionHeading>
+        <dl className="credit-burndown-breakdown-grid">
+          <div>
+            <dt>{messages.periodLabel}</dt>
+            <dd>{messages.periodValue(input.period.startDate, input.period.endDate)}</dd>
+          </div>
+          <div>
+            <dt>{messages.asOfLabel}</dt>
+            <dd>{result.asOf}</dd>
+          </div>
+          <div>
+            <dt>{messages.allocationLabel}</dt>
+            <dd>{messages.creditsValue(input.period.allocation)}</dd>
+          </div>
+          <div>
+            <dt>{messages.lookbackLabel}</dt>
+            <dd>{messages.dayCount(input.lookbackDays)}</dd>
+          </div>
+          <div>
+            <dt>{messages.dailyBurnLabel}</dt>
+            <dd>{messages.creditsValue(selectedScenario.dailyBurn)}</dd>
+          </div>
+          <div>
+            <dt>{messages.projectedUsageLabel}</dt>
+            <dd>{messages.creditsValue(selectedScenario.projectedCreditsUsed)}</dd>
+          </div>
+          <div>
+            <dt>{messages.projectedConsumptionLabel}</dt>
+            <dd>{messages.creditsValue(selectedScenario.projectedPeriodConsumption)}</dd>
+          </div>
+          <div>
+            <dt>{messages.utilizationLabel}</dt>
+            <dd>{messages.utilizationValue(selectedScenario.utilization)}</dd>
+          </div>
+          <div>
+            <dt>{messages.shortfallLabel}</dt>
+            <dd>{messages.creditsValue(selectedScenario.shortfall)}</dd>
+          </div>
+          {selectedScenario.depletionDate !== null && (
+            <div>
+              <dt>{messages.depletionDateLabel}</dt>
+              <dd>{selectedScenario.depletionDate}</dd>
+            </div>
+          )}
+          <div>
+            <dt>{messages.statusLabel}</dt>
+            <dd>{messages.statusText(selectedScenario.status)}</dd>
+          </div>
+        </dl>
 
-      <details className="credit-burndown-trace">
-        <summary>{messages.calculationTraceSummary}</summary>
+        <div
+          className="credit-burndown-table-scroll"
+          role="region"
+          aria-label={messages.observedTableCaption}
+          tabIndex={0}
+        >
+          <table className="credit-burndown-table">
+            <caption>{messages.observedTableCaption}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{messages.dateHeader}</th>
+                <th scope="col">{messages.dailyUsageHeader}</th>
+                <th scope="col">{messages.cumulativeUsageHeader}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.observedPoints.map((point) => (
+                <tr key={point.date}>
+                  <th scope="row">{point.date}</th>
+                  <td>{messages.creditsValue(point.creditsUsed)}</td>
+                  <td>{messages.creditsValue(point.cumulativeCreditsUsed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          className="credit-burndown-table-scroll"
+          role="region"
+          aria-label={messages.projectedTableCaption(scenarioLabel)}
+          tabIndex={0}
+        >
+          <table className="credit-burndown-table">
+            <caption>{messages.projectedTableCaption(scenarioLabel)}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{messages.dateHeader}</th>
+                <th scope="col">{messages.startBalanceHeader}</th>
+                <th scope="col">{messages.balanceDeltaHeader}</th>
+                <th scope="col">{messages.dailyUsageHeader}</th>
+                <th scope="col">{messages.endingBalanceHeader}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedScenario.points.map((point) => (
+                <tr key={point.date}>
+                  <th scope="row">{point.date}</th>
+                  <td>{messages.creditsValue(point.startBalance)}</td>
+                  <td>{messages.creditsValue(point.balanceDelta)}</td>
+                  <td>{messages.creditsValue(point.creditsUsed)}</td>
+                  <td>{messages.creditsValue(point.endingBalance)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <DetailHeading>{messages.sourceInputsTitle}</DetailHeading>
         <dl className="credit-burndown-source-inputs">
           {result.calculationTrace.sourceInputs.map((source, index) => (
@@ -565,8 +733,8 @@ export function CreditBurndownBreakdown({ className }: CreditBurndownSectionProp
             </li>
           ))}
         </ol>
-      </details>
-    </section>
+      </div>
+    </details>
   );
 }
 
@@ -578,6 +746,26 @@ export function CreditBurndownTitle({ className }: CreditBurndownSectionProps) {
     <Heading className={classNames("credit-burndown-title", className)}>
       {messages.title}
     </Heading>
+  );
+}
+
+function CreditBurndownStatus({ className }: CreditBurndownSectionProps) {
+  const { selectedScenario, messages } = useCreditBurndown();
+
+  return (
+    <div
+      className={classNames(
+        `${statusClass(selectedScenario.status)} credit-burndown-status-badge`,
+        className,
+      )}
+    >
+      <span aria-hidden="true" className="credit-burndown-status-symbol">
+        {statusSymbol(selectedScenario.status)}
+      </span>
+      <span>{messages.scenarioLabel(selectedScenario.key)}</span>
+      <span aria-hidden="true">·</span>
+      <span>{messages.statusText(selectedScenario.status)}</span>
+    </div>
   );
 }
 
@@ -606,12 +794,13 @@ export function CreditBurndownView(props: CreditBurndownViewProps) {
     <CreditBurndownRoot {...props}>
       <div className="credit-burndown-header">
         <CreditBurndownTitle />
-        <CreditBurndownActions />
+        <CreditBurndownStatus />
       </div>
       <CreditBurndownSummary />
       <CreditBurndownScenarios />
       <CreditBurndownChart />
       <CreditBurndownWarnings />
+      <CreditBurndownActions />
       <CreditBurndownBreakdown />
     </CreditBurndownRoot>
   );

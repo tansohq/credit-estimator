@@ -62,6 +62,9 @@ importers:
       '@tansohq/credit-forecast-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@tansohq/credit-forecast-csv':
+        specifier: workspace:*
+        version: link:../../packages/adapters/csv
       '@tansohq/credit-forecast-json':
         specifier: workspace:*
         version: link:../../packages/adapters/json
@@ -104,6 +107,22 @@ importers:
         specifier: workspace:*
         version: link:../../schema
     devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/adapters/tanso:
+    dependencies:
+      '@tansohq/credit-forecast-schema':
+        specifier: workspace:*
+        version: link:../../schema
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@tansohq/credit-forecast-core':
+        specifier: workspace:*
+        version: link:../../core
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

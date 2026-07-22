@@ -11,6 +11,7 @@ const packageDirectories = [
   "packages/ui-react",
   "packages/adapters/json",
   "packages/adapters/csv",
+  "packages/adapters/tanso",
 ];
 const packDirectory = mkdtempSync(join(tmpdir(), "credit-estimator-pack-"));
 
@@ -86,6 +87,17 @@ try {
   const uiDependencies = Object.keys(uiManifest.dependencies ?? {}).sort();
   if (JSON.stringify(uiDependencies) !== JSON.stringify(["@tansohq/credit-forecast-schema"])) {
     fail("packages/ui-react: core or adapter dependency detected");
+  }
+
+  const tansoManifest = JSON.parse(
+    readFileSync(join(root, "packages/adapters/tanso/package.json"), "utf8"),
+  );
+  const tansoDependencies = Object.keys(tansoManifest.dependencies ?? {}).sort();
+  if (
+    JSON.stringify(tansoDependencies) !==
+    JSON.stringify(["@tansohq/credit-forecast-schema", "zod"])
+  ) {
+    fail("packages/adapters/tanso: unexpected production dependency");
   }
 } finally {
   rmSync(packDirectory, { recursive: true, force: true });
