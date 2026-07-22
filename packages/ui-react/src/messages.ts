@@ -1,6 +1,6 @@
 import type { CreditBurndownMessages } from "./types.js";
 
-function formatCredits(value: string): string {
+function roundDecimal(value: string): string {
   const negative = value.startsWith("-");
   const digits = negative ? value.slice(1) : value;
   const [wholePart, fractionPart = ""] = digits.split(".");
@@ -64,16 +64,16 @@ export const defaultCreditBurndownMessages: CreditBurndownMessages = {
       LOW_BALANCE_PROJECTED: "Low balance projected",
       DEPLETION_PROJECTED: "Depletion projected",
     })[status],
-  creditsValue: (value) => `${formatCredits(value)} credits`,
-  utilizationValue: (value) => `${value}× allocation`,
+  creditsValue: (value) => `${roundDecimal(value)} credits`,
+  utilizationValue: (value) => `${roundDecimal(value)}× allocation`,
   dayCount: (count) => `${count} ${count === 1 ? "day" : "days"}`,
   periodValue: (startDate, endDate) => `${startDate} to ${endDate} (end exclusive)`,
   chartDescription: (scenarioLabel, endingBalance) =>
-    `${scenarioLabel} scenario projected balance ending at ${endingBalance} credits. Exact daily values are included in the accessible chart description.`,
+    `${scenarioLabel} scenario projected balance ending at ${roundDecimal(endingBalance)} credits. Exact daily values are included in the accessible chart description.`,
   lowBalanceWarning: (scenarioLabel, endingBalance, threshold) =>
-    `${scenarioLabel} scenario ends with ${endingBalance} credits, at or below the ${threshold}-credit low-balance threshold.`,
+    `${scenarioLabel} scenario ends with ${roundDecimal(endingBalance)} credits, at or below the ${roundDecimal(threshold)}-credit low-balance threshold.`,
   depletionWarning: (scenarioLabel, depletionDate, shortfall) =>
-    `${scenarioLabel} scenario reaches depletion on ${depletionDate} and ends with a ${shortfall}-credit shortfall.`,
+    `${scenarioLabel} scenario reaches depletion on ${depletionDate} and ends with a ${roundDecimal(shortfall)}-credit shortfall.`,
   versionMismatch: ({
     inputSchemaVersion,
     resultSchemaVersion,
