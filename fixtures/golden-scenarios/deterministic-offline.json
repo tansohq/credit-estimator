@@ -1,0 +1,92 @@
+{
+  "name": "identical inputs produce identical results without external access",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-02-04",
+    "period": {
+      "startDate": "2026-02-01",
+      "endDate": "2026-02-07",
+      "allocation": "100",
+      "lowBalanceThreshold": "10"
+    },
+    "lookbackDays": 3,
+    "dailyUsage": [
+      { "date": "2026-02-01", "creditsUsed": "10" },
+      { "date": "2026-02-02", "creditsUsed": "10" },
+      { "date": "2026-02-03", "creditsUsed": "10" }
+    ],
+    "balance": {
+      "current": "70",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "2" }
+    ]
+  },
+  "execution": {
+    "repeatCount": 2,
+    "networkAvailable": false,
+    "credentialsAvailable": false,
+    "systemClockAvailable": false
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysRemaining": 3,
+    "creditsUsedToDate": "30",
+    "baselineDailyBurn": "10",
+    "observedPoints": [
+      { "date": "2026-02-01", "creditsUsed": "10", "cumulativeCreditsUsed": "10" },
+      { "date": "2026-02-02", "creditsUsed": "10", "cumulativeCreditsUsed": "20" },
+      { "date": "2026-02-03", "creditsUsed": "10", "cumulativeCreditsUsed": "30" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "dailyBurn": "5",
+        "projectedCreditsUsed": "15",
+        "projectedPeriodConsumption": "45",
+        "utilization": "0.45",
+        "endingBalance": "55",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "base",
+        "dailyBurn": "10",
+        "projectedCreditsUsed": "30",
+        "projectedPeriodConsumption": "60",
+        "utilization": "0.6",
+        "endingBalance": "40",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "high",
+        "dailyBurn": "20",
+        "projectedCreditsUsed": "60",
+        "projectedPeriodConsumption": "90",
+        "utilization": "0.9",
+        "endingBalance": "10",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "LOW_BALANCE_PROJECTED"
+      }
+    ],
+    "assertions": {
+      "outputsDeepEqual": true,
+      "timestampsExcluded": true,
+      "randomValuesUsed": false,
+      "externalCalls": 0,
+      "credentialsRequired": false,
+      "productIdentifiersRequired": false
+    }
+  }
+}

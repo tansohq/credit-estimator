@@ -1,140 +1,176 @@
 {
-  "name": "recommended weight includes an explainable calculation trace",
+  "name": "observed and projected results preserve an ordered calculation trace",
   "schemaVersion": "1.0",
   "methodologyVersion": "1.0",
-  "modelVersion": "golden.calculation-trace.v1",
   "input": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.calculation-trace.v1",
-    "assumptions": {
-      "currency": "USD",
-      "realizedPricePerCredit": 0.01,
-      "targetGrossMargin": 0.7,
-      "targetValueCapture": 0.05,
-      "maximumValueCapture": 0.1,
-      "creditIncrement": 1,
-      "planAllocationBuffer": 0.2
+    "asOf": "2026-01-04",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-08",
+      "allocation": "320",
+      "lowBalanceThreshold": "20"
     },
-    "metrics": [
-      {
-        "metricKey": "agent.trace_example",
-        "monthlyVolume": 10,
-        "unitCost": 0.002,
-        "confidenceAdjustedValue": 0.2
-      }
+    "lookbackDays": 2,
+    "dailyUsage": [
+      { "date": "2026-01-01", "creditsUsed": "10" },
+      { "date": "2026-01-02", "creditsUsed": "20" },
+      { "date": "2026-01-03", "creditsUsed": "30" }
+    ],
+    "balance": {
+      "current": "200",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
     ]
   },
   "expected": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.calculation-trace.v1",
-    "metrics": [
+    "daysRemaining": 4,
+    "creditsUsedToDate": "60",
+    "baselineDailyBurn": "25",
+    "observedPoints": [
+      { "date": "2026-01-01", "creditsUsed": "10", "cumulativeCreditsUsed": "10" },
+      { "date": "2026-01-02", "creditsUsed": "20", "cumulativeCreditsUsed": "30" },
+      { "date": "2026-01-03", "creditsUsed": "30", "cumulativeCreditsUsed": "60" }
+    ],
+    "scenarios": [
       {
-        "metricKey": "agent.trace_example",
-        "costFloorCredits": 1,
-        "valueSupportedCredits": 1,
-        "maximumValueCredits": 2,
-        "recommendedCreditsPerUnit": 1,
-        "expectedUnitRevenue": 0.01,
-        "expectedUnitGrossMargin": 0.8,
-        "status": "FEASIBLE",
-        "warnings": [],
-        "calculationTrace": {
-          "sourceInputs": [
-            {
-              "path": "input.metrics[0].unitCost",
-              "value": 0.002
-            },
-            {
-              "path": "input.metrics[0].confidenceAdjustedValue",
-              "value": 0.2
-            },
-            {
-              "path": "input.assumptions.realizedPricePerCredit",
-              "value": 0.01
-            },
-            {
-              "path": "input.assumptions.targetGrossMargin",
-              "value": 0.7
-            },
-            {
-              "path": "input.assumptions.targetValueCapture",
-              "value": 0.05
-            },
-            {
-              "path": "input.assumptions.maximumValueCapture",
-              "value": 0.1
-            },
-            {
-              "path": "input.assumptions.creditIncrement",
-              "value": 1
-            }
-          ],
-          "steps": [
-            {
-              "key": "costFloorCredits",
-              "formula": "ceil_to_increment(unitCost / (realizedPricePerCredit * (1 - targetGrossMargin)))",
-              "operands": {
-                "unitCost": 0.002,
-                "realizedPricePerCredit": 0.01,
-                "targetGrossMargin": 0.7,
-                "creditIncrement": 1
-              },
-              "result": 1
-            },
-            {
-              "key": "valueSupportedCredits",
-              "formula": "round_to_increment(confidenceAdjustedValue * targetValueCapture / realizedPricePerCredit)",
-              "operands": {
-                "confidenceAdjustedValue": 0.2,
-                "targetValueCapture": 0.05,
-                "realizedPricePerCredit": 0.01,
-                "creditIncrement": 1
-              },
-              "result": 1
-            },
-            {
-              "key": "maximumValueCredits",
-              "formula": "floor_to_increment(confidenceAdjustedValue * maximumValueCapture / realizedPricePerCredit)",
-              "operands": {
-                "confidenceAdjustedValue": 0.2,
-                "maximumValueCapture": 0.1,
-                "realizedPricePerCredit": 0.01,
-                "creditIncrement": 1
-              },
-              "result": 2
-            },
-            {
-              "key": "recommendedCreditsPerUnit",
-              "formula": "max(costFloorCredits, valueSupportedCredits)",
-              "operands": {
-                "costFloorCredits": 1,
-                "valueSupportedCredits": 1
-              },
-              "result": 1
-            },
-            {
-              "key": "expectedUnitRevenue",
-              "formula": "recommendedCreditsPerUnit * realizedPricePerCredit",
-              "operands": {
-                "recommendedCreditsPerUnit": 1,
-                "realizedPricePerCredit": 0.01
-              },
-              "result": 0.01
-            },
-            {
-              "key": "expectedUnitGrossMargin",
-              "formula": "(expectedUnitRevenue - unitCost) / expectedUnitRevenue",
-              "operands": {
-                "expectedUnitRevenue": 0.01,
-                "unitCost": 0.002
-              },
-              "result": 0.8
-            }
-          ]
-        }
+        "key": "low",
+        "dailyBurn": "12.5",
+        "projectedCreditsUsed": "50",
+        "projectedPeriodConsumption": "110",
+        "utilization": "0.34375",
+        "endingBalance": "150",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "base",
+        "dailyBurn": "25",
+        "projectedCreditsUsed": "100",
+        "projectedPeriodConsumption": "160",
+        "utilization": "0.5",
+        "endingBalance": "100",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK",
+        "points": [
+          { "date": "2026-01-04", "startBalance": "200", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "175" },
+          { "date": "2026-01-05", "startBalance": "175", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "150" },
+          { "date": "2026-01-06", "startBalance": "150", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "125" },
+          { "date": "2026-01-07", "startBalance": "125", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "100" }
+        ]
+      },
+      {
+        "key": "high",
+        "dailyBurn": "37.5",
+        "projectedCreditsUsed": "150",
+        "projectedPeriodConsumption": "210",
+        "utilization": "0.65625",
+        "endingBalance": "50",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
       }
-    ]
+    ],
+    "calculationTrace": {
+      "sourceInputs": [
+        { "path": "input.asOf", "value": "2026-01-04" },
+        { "path": "input.period.startDate", "value": "2026-01-01" },
+        { "path": "input.period.endDate", "value": "2026-01-08" },
+        { "path": "input.period.allocation", "value": "320" },
+        { "path": "input.period.lowBalanceThreshold", "value": "20" },
+        { "path": "input.lookbackDays", "value": 2 },
+        { "path": "input.balance.current", "value": "200" },
+        { "path": "input.scenarios[1].burnMultiplier", "value": "1" }
+      ],
+      "steps": [
+        {
+          "key": "observedCumulativeCreditsUsed",
+          "formula": "cumulative[n] = cumulative[n - 1] + creditsUsed[n]",
+          "operands": { "dailyCreditsUsed": ["10", "20", "30"] },
+          "result": ["10", "30", "60"]
+        },
+        {
+          "key": "creditsUsedToDate",
+          "formula": "sum(dailyUsage[*].creditsUsed)",
+          "operands": { "dailyCreditsUsed": ["10", "20", "30"] },
+          "result": "60"
+        },
+        {
+          "key": "baselineDailyBurn",
+          "formula": "sum(lookbackCreditsUsed) / lookbackDays",
+          "operands": { "lookbackCreditsUsed": ["20", "30"], "lookbackDays": 2 },
+          "result": "25"
+        },
+        {
+          "key": "daysRemaining",
+          "formula": "calendar_days_in_[asOf,period.endDate)",
+          "operands": { "asOf": "2026-01-04", "periodEndDate": "2026-01-08" },
+          "result": 4
+        },
+        {
+          "key": "base.dailyBurn",
+          "formula": "baselineDailyBurn * burnMultiplier",
+          "operands": { "baselineDailyBurn": "25", "burnMultiplier": "1" },
+          "result": "25"
+        },
+        {
+          "key": "base.projectedCreditsUsed",
+          "formula": "dailyBurn * daysRemaining",
+          "operands": { "dailyBurn": "25", "daysRemaining": 4 },
+          "result": "100"
+        },
+        {
+          "key": "base.projectedPeriodConsumption",
+          "formula": "creditsUsedToDate + projectedCreditsUsed",
+          "operands": { "creditsUsedToDate": "60", "projectedCreditsUsed": "100" },
+          "result": "160"
+        },
+        {
+          "key": "base.utilization",
+          "formula": "projectedPeriodConsumption / periodAllocation",
+          "operands": { "projectedPeriodConsumption": "160", "periodAllocation": "320" },
+          "result": "0.5"
+        },
+        {
+          "key": "base.points",
+          "formula": "endingBalance = startBalance + balanceDelta - creditsUsed",
+          "operands": { "initialBalance": "200", "dailyBurn": "25", "scheduledDeltas": [] },
+          "result": [
+            { "date": "2026-01-04", "startBalance": "200", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "175" },
+            { "date": "2026-01-05", "startBalance": "175", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "150" },
+            { "date": "2026-01-06", "startBalance": "150", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "125" },
+            { "date": "2026-01-07", "startBalance": "125", "balanceDelta": "0", "creditsUsed": "25", "endingBalance": "100" }
+          ]
+        },
+        {
+          "key": "base.depletionDate",
+          "formula": "first date where endingBalance <= 0",
+          "operands": { "endingBalances": ["175", "150", "125", "100"] },
+          "result": null
+        },
+        {
+          "key": "base.shortfall",
+          "formula": "max(0, -endingBalance)",
+          "operands": { "endingBalance": "100" },
+          "result": "0"
+        },
+        {
+          "key": "base.status",
+          "formula": "status_from_depletion_date_ending_balance_and_threshold",
+          "operands": { "depletionDate": null, "endingBalance": "100", "lowBalanceThreshold": "20" },
+          "result": "ON_TRACK"
+        }
+      ]
+    },
+    "warnings": []
   }
 }

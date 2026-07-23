@@ -1,82 +1,91 @@
 {
-  "name": "ordered demand multipliers produce ordered scenarios",
+  "name": "changing usage with a short lookback preserves scenario ordering",
   "schemaVersion": "1.0",
   "methodologyVersion": "1.0",
-  "modelVersion": "golden.scenario-ordering.v1",
   "input": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.scenario-ordering.v1",
-    "assumptions": {
-      "currency": "USD",
-      "realizedPricePerCredit": 0.01,
-      "targetGrossMargin": 0.7,
-      "targetValueCapture": 0.05,
-      "maximumValueCapture": 0.1,
-      "creditIncrement": 1,
-      "planAllocationBuffer": 0.2
+    "asOf": "2026-01-06",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-11",
+      "allocation": "500",
+      "lowBalanceThreshold": "50"
     },
-    "metrics": [
-      {
-        "metricKey": "agent.generate",
-        "monthlyVolume": 1000,
-        "unitCost": 0.003,
-        "confidenceAdjustedValue": 0.4,
-        "creditsPerUnitOverride": 2
-      }
+    "lookbackDays": 2,
+    "dailyUsage": [
+      { "date": "2026-01-01", "creditsUsed": "10" },
+      { "date": "2026-01-02", "creditsUsed": "20" },
+      { "date": "2026-01-03", "creditsUsed": "30" },
+      { "date": "2026-01-04", "creditsUsed": "40" },
+      { "date": "2026-01-05", "creditsUsed": "40" }
     ],
+    "balance": {
+      "current": "500",
+      "schedule": []
+    },
     "scenarios": [
-      {
-        "key": "low",
-        "volumeMultiplier": 0.7,
-        "costMultiplier": 1,
-        "providerPriceMultiplier": 1
-      },
-      {
-        "key": "base",
-        "volumeMultiplier": 1,
-        "costMultiplier": 1,
-        "providerPriceMultiplier": 1
-      },
-      {
-        "key": "high",
-        "volumeMultiplier": 1.4,
-        "costMultiplier": 1,
-        "providerPriceMultiplier": 1
-      }
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
     ]
   },
   "expected": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.scenario-ordering.v1",
+    "daysRemaining": 5,
+    "creditsUsedToDate": "140",
+    "baselineDailyBurn": "40",
+    "observedPoints": [
+      { "date": "2026-01-01", "creditsUsed": "10", "cumulativeCreditsUsed": "10" },
+      { "date": "2026-01-02", "creditsUsed": "20", "cumulativeCreditsUsed": "30" },
+      { "date": "2026-01-03", "creditsUsed": "30", "cumulativeCreditsUsed": "60" },
+      { "date": "2026-01-04", "creditsUsed": "40", "cumulativeCreditsUsed": "100" },
+      { "date": "2026-01-05", "creditsUsed": "40", "cumulativeCreditsUsed": "140" }
+    ],
     "scenarios": [
       {
         "key": "low",
-        "monthlyCredits": 1400,
-        "monthlyCost": 2.1,
-        "consumptionRevenue": 14,
-        "grossMargin": 0.85
+        "dailyBurn": "20",
+        "projectedCreditsUsed": "100",
+        "projectedPeriodConsumption": "240",
+        "utilization": "0.48",
+        "endingBalance": "400",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
       },
       {
         "key": "base",
-        "monthlyCredits": 2000,
-        "monthlyCost": 3,
-        "consumptionRevenue": 20,
-        "grossMargin": 0.85
+        "dailyBurn": "40",
+        "projectedCreditsUsed": "200",
+        "projectedPeriodConsumption": "340",
+        "utilization": "0.68",
+        "endingBalance": "300",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
       },
       {
         "key": "high",
-        "monthlyCredits": 2800,
-        "monthlyCost": 4.2,
-        "consumptionRevenue": 28,
-        "grossMargin": 0.85
+        "dailyBurn": "60",
+        "projectedCreditsUsed": "300",
+        "projectedPeriodConsumption": "440",
+        "utilization": "0.88",
+        "endingBalance": "200",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
       }
     ],
     "assertions": {
-      "monthlyCreditsAreOrdered": true,
-      "monthlyCostsAreOrdered": true,
-      "consumptionRevenueIsOrdered": true
+      "scenarioKeysAreLowBaseHigh": true,
+      "dailyBurnIsAscending": true,
+      "projectedCreditsUsedIsAscending": true,
+      "projectedPeriodConsumptionIsAscending": true,
+      "utilizationIsAscending": true,
+      "endingBalanceIsDescending": true,
+      "everyScenarioHasFiveProjectedPoints": true
     }
   }
 }

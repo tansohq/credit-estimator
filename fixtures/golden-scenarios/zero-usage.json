@@ -1,44 +1,94 @@
 {
-  "name": "zero monthly usage produces zero scenario totals",
+  "name": "explicit zero-use days produce zero burn without arithmetic errors",
   "schemaVersion": "1.0",
   "methodologyVersion": "1.0",
-  "modelVersion": "golden.zero-usage.v1",
   "input": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.zero-usage.v1",
-    "assumptions": {
-      "currency": "USD",
-      "realizedPricePerCredit": 0.01,
-      "targetGrossMargin": 0.7,
-      "targetValueCapture": 0.05,
-      "maximumValueCapture": 0.1,
-      "creditIncrement": 1,
-      "planAllocationBuffer": 0.2
+    "asOf": "2026-01-06",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-11",
+      "allocation": "1000",
+      "lowBalanceThreshold": "50"
     },
-    "metrics": [
-      {
-        "metricKey": "agent.summarize",
-        "monthlyVolume": 0,
-        "unitCost": 0.002,
-        "confidenceAdjustedValue": 0.2
-      }
+    "lookbackDays": 5,
+    "dailyUsage": [
+      { "date": "2026-01-01", "creditsUsed": "0" },
+      { "date": "2026-01-02", "creditsUsed": "0" },
+      { "date": "2026-01-03", "creditsUsed": "0" },
+      { "date": "2026-01-04", "creditsUsed": "0" },
+      { "date": "2026-01-05", "creditsUsed": "0" }
+    ],
+    "balance": {
+      "current": "300",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
     ]
   },
   "expected": {
     "schemaVersion": "1.0",
     "methodologyVersion": "1.0",
-    "modelVersion": "golden.zero-usage.v1",
-    "baseScenario": {
-      "monthlyCredits": 0,
-      "monthlyCost": 0,
-      "consumptionRevenue": 0,
-      "grossProfit": 0,
-      "grossMargin": 0
-    },
+    "daysRemaining": 5,
+    "creditsUsedToDate": "0",
+    "baselineDailyBurn": "0",
+    "observedPoints": [
+      { "date": "2026-01-01", "creditsUsed": "0", "cumulativeCreditsUsed": "0" },
+      { "date": "2026-01-02", "creditsUsed": "0", "cumulativeCreditsUsed": "0" },
+      { "date": "2026-01-03", "creditsUsed": "0", "cumulativeCreditsUsed": "0" },
+      { "date": "2026-01-04", "creditsUsed": "0", "cumulativeCreditsUsed": "0" },
+      { "date": "2026-01-05", "creditsUsed": "0", "cumulativeCreditsUsed": "0" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "dailyBurn": "0",
+        "projectedCreditsUsed": "0",
+        "projectedPeriodConsumption": "0",
+        "utilization": "0",
+        "endingBalance": "300",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "base",
+        "dailyBurn": "0",
+        "projectedCreditsUsed": "0",
+        "projectedPeriodConsumption": "0",
+        "utilization": "0",
+        "endingBalance": "300",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK",
+        "points": [
+          { "date": "2026-01-06", "startBalance": "300", "balanceDelta": "0", "creditsUsed": "0", "endingBalance": "300" },
+          { "date": "2026-01-07", "startBalance": "300", "balanceDelta": "0", "creditsUsed": "0", "endingBalance": "300" },
+          { "date": "2026-01-08", "startBalance": "300", "balanceDelta": "0", "creditsUsed": "0", "endingBalance": "300" },
+          { "date": "2026-01-09", "startBalance": "300", "balanceDelta": "0", "creditsUsed": "0", "endingBalance": "300" },
+          { "date": "2026-01-10", "startBalance": "300", "balanceDelta": "0", "creditsUsed": "0", "endingBalance": "300" }
+        ]
+      },
+      {
+        "key": "high",
+        "dailyBurn": "0",
+        "projectedCreditsUsed": "0",
+        "projectedPeriodConsumption": "0",
+        "utilization": "0",
+        "endingBalance": "300",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      }
+    ],
+    "warnings": [],
     "assertions": {
-      "containsInvalidNumber": false,
-      "containsArithmeticError": false
+      "scenarioResultsEqualWhenBaselineIsZero": true,
+      "containsInvalidNumber": false
     }
   }
 }

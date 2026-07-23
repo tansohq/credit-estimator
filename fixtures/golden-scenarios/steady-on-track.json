@@ -1,0 +1,91 @@
+{
+  "name": "steady burn remains on track",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-01-06",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-11",
+      "allocation": "1000",
+      "lowBalanceThreshold": "100"
+    },
+    "lookbackDays": 3,
+    "dailyUsage": [
+      { "date": "2026-01-01", "creditsUsed": "50" },
+      { "date": "2026-01-02", "creditsUsed": "50" },
+      { "date": "2026-01-03", "creditsUsed": "50" },
+      { "date": "2026-01-04", "creditsUsed": "50" },
+      { "date": "2026-01-05", "creditsUsed": "50" }
+    ],
+    "balance": {
+      "current": "700",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-01-06",
+    "daysRemaining": 5,
+    "creditsUsedToDate": "250",
+    "baselineDailyBurn": "50",
+    "observedPoints": [
+      { "date": "2026-01-01", "creditsUsed": "50", "cumulativeCreditsUsed": "50" },
+      { "date": "2026-01-02", "creditsUsed": "50", "cumulativeCreditsUsed": "100" },
+      { "date": "2026-01-03", "creditsUsed": "50", "cumulativeCreditsUsed": "150" },
+      { "date": "2026-01-04", "creditsUsed": "50", "cumulativeCreditsUsed": "200" },
+      { "date": "2026-01-05", "creditsUsed": "50", "cumulativeCreditsUsed": "250" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "dailyBurn": "25",
+        "projectedCreditsUsed": "125",
+        "projectedPeriodConsumption": "375",
+        "utilization": "0.375",
+        "endingBalance": "575",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "base",
+        "dailyBurn": "50",
+        "projectedCreditsUsed": "250",
+        "projectedPeriodConsumption": "500",
+        "utilization": "0.5",
+        "endingBalance": "450",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK",
+        "points": [
+          { "date": "2026-01-06", "startBalance": "700", "balanceDelta": "0", "creditsUsed": "50", "endingBalance": "650" },
+          { "date": "2026-01-07", "startBalance": "650", "balanceDelta": "0", "creditsUsed": "50", "endingBalance": "600" },
+          { "date": "2026-01-08", "startBalance": "600", "balanceDelta": "0", "creditsUsed": "50", "endingBalance": "550" },
+          { "date": "2026-01-09", "startBalance": "550", "balanceDelta": "0", "creditsUsed": "50", "endingBalance": "500" },
+          { "date": "2026-01-10", "startBalance": "500", "balanceDelta": "0", "creditsUsed": "50", "endingBalance": "450" }
+        ]
+      },
+      {
+        "key": "high",
+        "dailyBurn": "75",
+        "projectedCreditsUsed": "375",
+        "projectedPeriodConsumption": "625",
+        "utilization": "0.625",
+        "endingBalance": "325",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      }
+    ],
+    "warnings": []
+  }
+}

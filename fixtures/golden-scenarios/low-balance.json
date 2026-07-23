@@ -1,0 +1,86 @@
+{
+  "name": "threshold equality is low balance while zero is depleted",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "asOf": "2026-01-06",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-01-11",
+      "allocation": "500",
+      "lowBalanceThreshold": "50"
+    },
+    "lookbackDays": 3,
+    "dailyUsage": [
+      { "date": "2026-01-01", "creditsUsed": "20" },
+      { "date": "2026-01-02", "creditsUsed": "20" },
+      { "date": "2026-01-03", "creditsUsed": "20" },
+      { "date": "2026-01-04", "creditsUsed": "20" },
+      { "date": "2026-01-05", "creditsUsed": "20" }
+    ],
+    "balance": {
+      "current": "150",
+      "schedule": []
+    },
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysRemaining": 5,
+    "creditsUsedToDate": "100",
+    "baselineDailyBurn": "20",
+    "observedPoints": [
+      { "date": "2026-01-01", "creditsUsed": "20", "cumulativeCreditsUsed": "20" },
+      { "date": "2026-01-02", "creditsUsed": "20", "cumulativeCreditsUsed": "40" },
+      { "date": "2026-01-03", "creditsUsed": "20", "cumulativeCreditsUsed": "60" },
+      { "date": "2026-01-04", "creditsUsed": "20", "cumulativeCreditsUsed": "80" },
+      { "date": "2026-01-05", "creditsUsed": "20", "cumulativeCreditsUsed": "100" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "dailyBurn": "10",
+        "projectedCreditsUsed": "50",
+        "projectedPeriodConsumption": "150",
+        "utilization": "0.3",
+        "endingBalance": "100",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "ON_TRACK"
+      },
+      {
+        "key": "base",
+        "dailyBurn": "20",
+        "projectedCreditsUsed": "100",
+        "projectedPeriodConsumption": "200",
+        "utilization": "0.4",
+        "endingBalance": "50",
+        "depletionDate": null,
+        "shortfall": "0",
+        "status": "LOW_BALANCE_PROJECTED"
+      },
+      {
+        "key": "high",
+        "dailyBurn": "30",
+        "projectedCreditsUsed": "150",
+        "projectedPeriodConsumption": "250",
+        "utilization": "0.5",
+        "endingBalance": "0",
+        "depletionDate": "2026-01-10",
+        "shortfall": "0",
+        "status": "DEPLETION_PROJECTED"
+      }
+    ],
+    "warnings": [
+      { "code": "LOW_BALANCE_PROJECTED", "scenarioKey": "base", "endingBalance": "50", "threshold": "50" },
+      { "code": "DEPLETION_PROJECTED", "scenarioKey": "high", "depletionDate": "2026-01-10", "shortfall": "0" }
+    ]
+  }
+}

@@ -1,271 +1,291 @@
-# Product Scope: Credit Estimator
+# Product Scope: Credit Burndown Forecaster
 
 ## Executive summary
 
-The Credit Estimator is a standalone, product-neutral tool for designing and
-publishing credit rules for AI products. It converts workload, provider cost,
-customer value, confidence, and margin assumptions into explainable credit
-weights, plan recommendations, forecasts, and portable model specifications.
+The Credit Burndown Forecaster is an embeddable, provider-neutral component
+that forecasts credit or usage runway from observed host data. Companies can
+embed it in customer dashboards or run the same deterministic core as a
+standalone browser or Node.js library.
 
-The repository name reflects its origin, but Tanso is only one optional
-integration. The estimator must remain fully useful offline and without any
-adopting product, credentials, or network access.
+Customers see how quickly they are using credits, whether credits will last
+through the current period, when depletion is likely, and how much risk exists
+under different usage scenarios.
+
+The core runs locally and deterministically. Tanso is one optional adapter,
+not a required service or architectural dependency.
 
 ## Product promise
 
-One neutral model should be usable through:
+A company can add a trustworthy credit forecast to its dashboard without
+giving the forecaster control of balances, billing, usage events, or customer
+accounts.
 
-- an embedded library;
-- a command-line workflow;
-- a generic hosted API;
-- JSON or CSV files;
-- a local deterministic rules engine;
-- an optional embeddable React calculator; and
-- optional adapters for Tanso or other adopting products.
+The same explicit input produces the same result in a browser, Node.js process,
+test, or compatible host backend. Live customer views do not require an
+estimator service or network call when the core runs locally.
 
-Changing the delivery channel must not change the calculation result.
+The delivery model has three implemented paths:
 
-## Target user
+1. standalone browser or Node.js library execution, including the local demo;
+2. a result-controlled React widget; and
+3. an optional pure Tanso adapter that maps a complete host-supplied snapshot
+   and explicit assumptions into neutral input.
 
-The primary user is a product, pricing, or FinOps leader at an AI software
-company. The initial use case is designing or revising a credit system before
-an adopting product implements balances, metering, entitlement enforcement,
-or billing.
+Standalone does not mean a shipped CLI. No CLI or hosted forecast API is part
+of the MVP. No automatic Tanso source connector is included.
+
+## Users
+
+Primary user: a customer monitoring credits inside an AI product dashboard.
+
+Adopting user: the product or engineering team embedding the forecast and
+supplying the source-of-truth snapshot.
 
 ## Problem
 
-AI companies often choose credit weights and plan allocations using rough
-cost multipliers or intuition. That makes it difficult to explain:
+Credit balances show what remains, but rarely answer what customers need to
+know:
 
-- why one action consumes more credits than another;
-- whether a plan remains profitable under heavy usage;
-- whether customers receive sufficient value;
-- how many credits a customer will need;
-- which model version produced a runtime quote; and
-- when weights should be recalibrated.
+- Is current usage normal?
+- Will this balance last until renewal or period end?
+- When could credits run out?
+- What happens if usage increases or decreases?
+- How large is the likely shortfall?
+- Which observations and assumptions produced the forecast?
+
+Companies can build this independently, but date boundaries, missing usage
+days, scenario math, balance changes, and chart consistency create repeated
+implementation work. A portable deterministic forecaster provides one
+explainable contract.
 
 ## Core hypothesis
 
-We believe AI product and pricing teams have difficulty translating variable
-AI workloads and customer value into a simple credit system.
+Customers make better usage decisions when a dashboard turns historical
+credit usage into a clear, explainable burndown projection.
 
-We believe a transparent, deterministic estimator will solve this by exposing
-every assumption, calculating economic guardrails, and producing portable,
-versioned recommendations and rules.
+The hypothesis is supported when adopting companies can embed the component
+with their own data and customers can correctly understand remaining runway,
+depletion risk, and scenario differences without support intervention.
 
-The hypothesis is supported when design partners can produce, defend,
-publish, and locally evaluate a usable credit model without rebuilding the
-calculations or depending on a vendor service during live requests.
+It is unsupported if the forecast cannot be trusted, requires product-specific
+state, or does not change customer decisions.
 
-It is unsupported when users routinely choose weights outside the model
-because they do not trust or understand its recommendations.
+## Neutral input snapshot
 
-## Estimator responsibilities
+The adopting host supplies a complete read-only snapshot containing:
 
-The estimator owns the product-neutral logic for:
+- `schemaVersion`;
+- `methodologyVersion`;
+- `asOf`, the first projected date;
+- `period: { startDate, endDate, allocation, lowBalanceThreshold }`;
+- current balance available at the start of `asOf`;
+- complete daily usage history for every date in
+  `[period.startDate, asOf)`, with zero-use days represented explicitly;
+- explicit `lookbackDays`;
+- explicit low, base, and high burn multipliers;
+- optional dated future balance deltas.
 
-- provider and total unit-cost calculation;
-- EVE and customer-value modeling;
-- confidence adjustment;
-- credit-weight guardrails and recommendations;
-- low, base, and high forecasts;
-- plan and package recommendations;
-- calibration analysis;
-- automated recommendation proposals;
-- versioned model schemas and calculation traces; and
-- deterministic credit quotes from a published model.
+All dates are ISO 8601 date-only values (`YYYY-MM-DD`). The host supplies
+`asOf`; the forecaster never reads the system clock or generates a current
+date. Observed usage covers `[period.startDate, asOf)`. Projection covers
+`[asOf, period.endDate)`. These half-open ranges prevent day overlap.
 
-Automated recommendations are advisory. They never update a published model
-without explicit approval and an effective timestamp.
+Portable JSON represents decimal quantities as canonical base-10 strings.
+Only count fields such as `lookbackDays` use JSON integers. Forecast arithmetic
+must not use binary floating-point values.
 
-## Adopting-product responsibilities
+The host remains responsible for snapshot consistency. The forecaster does
+not derive or correct the source-of-truth balance from usage history.
 
-An adopting product owns all runtime state and side effects:
+## Forecast output
 
-- wallet balances and credit pools;
-- grants, deductions, reversals, expiration, and rollover;
-- transactions and ledgers;
-- entitlement and hard-limit enforcement;
-- subscription state;
-- payments and Stripe top-ups;
-- runtime metric-event persistence; and
-- model storage, rollout, rollback, and effective-version selection.
+The deterministic result includes:
 
-The estimator's quote operation returns required credits. The adopting
-product decides whether to authorize the action and how to record it.
+- `schemaVersion` and `methodologyVersion` echoed unchanged;
+- baseline daily burn from the explicit lookback window;
+- period usage to date;
+- low, base, and high projected burn;
+- projected ending balance for each scenario;
+- projected utilization for each scenario;
+- depletion date when applicable;
+- projected shortfall;
+- neutral status classification;
+- daily observed and projected chart points;
+- structured warnings; and
+- ordered calculation traces.
 
-## Deterministic quote operation
+The result contains no generated timestamp. Every output must be reproducible
+from the input alone.
 
-The portable rules engine evaluates:
+## Ownership boundary
 
-    metricKey + quantity + context + modelVersion -> required credits
+### Forecaster owns
 
-`context` may contain neutral keys such as `productKey`, `planKey`, and
-`segmentKey`, plus namespaced extensions. The result includes the three
-required versions, the applied rule, warnings, and a calculation trace.
+- neutral snapshot and result schemas;
+- snapshot validation;
+- baseline burn calculation;
+- low, base, and high deterministic projections;
+- application of supplied future balance deltas;
+- ending balance, utilization, depletion, and shortfall calculations;
+- neutral scenario status classification;
+- daily chart-point generation;
+- structured warnings; and
+- explainable calculation traces.
 
-The quote operation:
+### Adopting product owns
 
-- is pure and deterministic;
-- performs no network calls;
-- has no dependency on the hosted estimator API;
-- does not read or mutate balances;
-- does not enforce entitlements; and
-- does not persist metric events or transactions.
+- source-of-truth balances and period allocations;
+- credit grants, deductions, reversals, expiration, and rollover;
+- usage-event collection, aggregation, and persistence;
+- wallets, transactions, and ledgers;
+- authentication and authorization;
+- subscription and entitlement state;
+- payments, billing, and top-ups;
+- snapshot persistence and refresh timing;
+- customer/account mapping; and
+- CTA behavior, navigation, and side effects prompted by forecast status.
+
+The forecaster may model an explicitly supplied future balance delta. It never
+creates, schedules, or executes that balance change.
 
 ## MVP scope
 
-### In scope
+### Core foundation
 
-1. Structured input for assumptions, metrics, customer drivers, and scenarios.
-2. Deterministic metric economics and recommended weights.
-3. Low, base, and high demand, revenue, cost, and margin forecasts.
-4. Plan and package allocation recommendations.
-5. Versioned neutral JSON input and output for offline files and a CLI.
-6. Golden scenarios that execute without network access.
-7. Calculation traces sufficient to explain every recommendation.
+1. Product-neutral TypeScript schemas.
+2. Deterministic, decimal-safe forecast calculations.
+3. Explicit date and history validation.
+4. Low, base, and high projections.
+5. Ending balance, utilization, depletion date, shortfall, and status.
+6. Daily chart points, structured warnings, and calculation traces.
+7. Golden fixtures executable without credentials or network access.
 
-### Explicitly deferred from the first MVP
+### Primary MVP delivery
 
-- Hosted API implementation
-- CSV adapter implementation
-- Webhook and product adapter implementation
-- Runtime model publication automation
-- Production telemetry ingestion
-- Automatic recalibration execution
-- Multi-user review and approval workflows
-- The optional embeddable React calculator and hosted reference application
-- Machine-learning prediction
+The primary MVP implements an embeddable React package as
+`@tansohq/credit-burndown-react`, the calculation package as
+`@tansohq/credit-forecast-core`, and its neutral contracts as
+`@tansohq/credit-forecast-schema`. Registry publication remains a release
+step.
 
-These are sequencing decisions, not changes to the ownership boundary. For
-example, calibration and automated recommendation logic belong to the
-estimator even though their implementation follows methodology validation.
+The React package should let customers see:
 
-### Permanently outside estimator ownership
+- current balance and period progress;
+- used-to-date and baseline burn;
+- low, base, and high burndown lines;
+- projected ending balance or depletion date;
+- low-balance and shortfall warnings;
+- daily observed and projected values; and
+- an accessible explanation of the calculation.
 
-- Wallets, balances, grants, deductions, and ledgers
-- Runtime entitlement or hard-limit enforcement
-- Subscription lifecycle management
-- Payments and Stripe top-ups
-- Runtime metric-event persistence
-- Product-specific customer or account state
+It is controlled and composable. The host supplies the snapshot, responds to
+changes or actions, controls data refresh, and chooses any export or CTA
+behavior. The component owns no authentication, storage, billing, top-up, or
+network logic.
+
+### Later delivery
+
+- Automatic Tanso source retrieval and other product adapters
+- Optional hosted API wrapper as a deferred, non-MVP deployment choice
+- Additional framework wrappers when committed adopters require them
+- Package registry publication and public contribution policy
+
+The pure Tanso mapping adapter is implemented. Current integrations must still
+supply complete, ordered neutral daily usage buckets, the start-of-`asOf`
+balance, and all forecast assumptions. Source retrieval remains host-owned.
+
+## Explicit exclusions
+
+- Provider and infrastructure cost calculations
+- Customer-value or EVE modeling
+- Credit-weight recommendations
+- Revenue, gross-profit, or margin forecasts
+- Plan and package recommendations
+- Credit pricing design
+- Runtime credit quote or rules engine
+- Model publication, approval, effective timestamps, or rollout governance
+- Wallet or balance mutation
+- Credit grants, deductions, transactions, or ledgers
+- Usage-event ingestion or persistence
+- Entitlement enforcement
+- Authentication
+- Subscription or billing workflows
+- Stripe top-ups
+- Automated customer actions
+- Machine-learning forecasts in the deterministic core
+
+The neutral contract uses `schemaVersion` and `methodologyVersion`. It does
+not use `modelVersion`.
 
 ## First user journey
 
-1. Define global economic assumptions.
-2. Add five to ten representative billable metrics.
-3. Define one to three customer segments and workload drivers.
-4. Run low, base, and high scenarios.
-5. Review weights, plan allocations, economics, and warnings.
-6. Export a versioned result through JSON or the CLI.
-7. Later, approve a model version for publication with an effective timestamp.
-8. Evaluate quotes locally in the adopting product's request path.
+1. Customer opens the usage page in an adopting product.
+2. Host loads its source-of-truth balance, allocation, period, and complete
+   daily usage snapshot.
+3. Embedded core calculates the forecast locally.
+4. UI shows historical burn and low, base, and high projections.
+5. Customer sees projected period-end balance, likely depletion date, or
+   shortfall.
+6. Customer opens the trace to understand the lookback rate, multipliers, and
+   future deltas used.
+7. If action is needed, the host decides which CTA to show and what it does.
 
 ## Roadmap ownership
 
-| Capability | Estimator owns | Adopting product owns | Delivery stage |
+| Capability | Forecaster owns | Adopting product owns | Stage |
 |---|---|---|---|
-| Cost and EVE calculations | Formulas, schemas, traces | Supplies approved inputs | MVP |
-| Credit-weight recommendations | Guardrails and proposals | Approves commercial policy | MVP |
-| Low/base/high forecasts | Deterministic scenarios | Supplies product workload assumptions | MVP |
-| Plan/package recommendations | Allocation and utilization analysis | Creates and sells actual plans | MVP |
-| Offline library and CLI | Neutral calculation surfaces | Embeds or invokes them | MVP |
-| JSON import/export | Neutral model and result contracts | Stores or transfers files | MVP |
-| Embeddable React calculator | Controlled, neutral estimation workflow and explainable results | Injects local or remote estimation and optional export behavior | Next, after engine validation |
-| Hosted reference calculator | Demonstrates local and hosted estimation modes | Supplies deployment, authentication, and persistence if desired | Next, after engine validation |
-| CSV import/export | Neutral tabular mapping | Supplies product mappings | Next |
-| Generic hosted API | Transport wrapper around neutral core | Chooses whether to call it | Next |
-| Portable rules engine | Local quote evaluation | Hosts it in the live request path | Next |
-| Calibration | Error analysis and recommendation proposals | Exports telemetry observations | Later |
-| Automated recommendations | Produces reviewable proposals | Approves or rejects proposals | Later |
-| Model publication | Neutral publication contract and adapters | Stores, activates, and rolls back rules | Later |
-| Runtime credit quote | Calculates required credits | Selects effective model and supplies context | Later |
-| Wallets and ledgers | — | All balances and transactions | Outside |
-| Entitlements and limits | — | All authorization and enforcement | Outside |
-| Billing and top-ups | — | All payments and subscription state | Outside |
-| Metric-event persistence | — | All runtime event storage | Outside |
+| Neutral snapshot validation | Schemas and deterministic validation | Supplies complete snapshot | Core MVP |
+| Baseline daily burn | Formula and trace | Supplies daily history and lookback | Core MVP |
+| Low/base/high forecast | Scenario calculation and chart points | Supplies multipliers | Core MVP |
+| Ending balance and utilization | Calculation and trace | Supplies current balance and allocation | Core MVP |
+| Depletion and shortfall | Calculation, status, warning | Chooses customer action | Core MVP |
+| Future balance deltas | Forecast-only application | Supplies and executes real changes | Core MVP |
+| Embeddable React UI | Neutral accessible presentation | Embeds, themes, and supplies data | Primary MVP |
+| JSON/CSV adapters | Neutral serialization mapping | Imports or exports product data | Implemented |
+| Local reference demo | Demonstrates browser-local integration | Runs or deploys it if useful | Implemented locally |
+| Tanso OSS adapter | Validates and maps an already-fetched, already-consistent Tanso forecast snapshot plus explicit assumptions | Owns source data, credentials, aggregation, consistency, and APIs | Implemented |
+| Automatic Tanso source connector | — | Fetches and assembles trustworthy source inputs | Deferred; not implemented |
+| Optional hosted API | Wraps the same neutral core without new formulas | Owns deployment, authentication, and operations | Deferred; non-MVP |
+| Balance and allocation truth | — | Full ownership | Outside |
+| Usage events and persistence | — | Full ownership | Outside |
+| Wallets and ledgers | — | Full ownership | Outside |
+| Authentication and entitlements | — | Full ownership | Outside |
+| Billing and top-ups | — | Full ownership | Outside |
+| CTA behavior and side effects | Exposes neutral status | Full ownership | Outside |
 
 ## Success criteria
 
-- A first-time user can create a model using documented examples.
-- Every weight and quote is traceable to explicit inputs and formulas.
-- Infeasible metrics are clearly identified.
-- Repeated calculations are deterministic across delivery channels.
-- Every calculation input supplies `schemaVersion`, `methodologyVersion`, and
-  `modelVersion`; every output echoes them unchanged.
-- A model version is not reused after any calculation-relevant input changes,
-  and cache identity includes the canonical input or a deterministic digest.
-  Estimate caching is deferred until canonicalization is specified.
-- Neutral contracts use stable keys and require no product UUIDs.
-- Golden scenarios pass without credentials or network access.
-- A runtime can evaluate a published model locally when the hosted API is
-  unavailable.
-- Product adapters can be added without changing the core domain model.
-- The generic calculator can run with a local estimator function, a compatible
-  hosted API, or an embedding host without changing its component contract.
+- Every golden fixture passes offline with no credentials.
+- Identical snapshots produce identical results across supported runtimes.
+- Every input and output includes `schemaVersion` and
+  `methodologyVersion`; neither requires `modelVersion`.
+- No calculation reads the clock, timezone, environment, or network.
+- Portable JSON uses canonical base-10 strings for decimal quantities and
+  integers only for count fields.
+- Missing dates, missing history days, and incomplete lookback windows fail
+  validation instead of receiving defaults.
+- Zero-usage periods produce valid, explainable results.
+- Low, base, and high scenario ordering follows the supplied multipliers.
+- Summary values and daily chart points agree.
+- Depletion dates, shortfalls, statuses, and warnings are traceable to ordered
+  calculation steps.
+- `@tansohq/credit-forecast-core` runs in a browser without product SDKs.
+- `@tansohq/credit-burndown-react` can be embedded without Tanso and without
+  owning authentication, networking, persistence, billing, or CTA behavior.
+- The optional Tanso mapping adapter can be removed without changing neutral
+  schemas, core calculations, JSON/CSV exchange, or the React UI.
+- An adopting team can integrate its snapshot and render a useful forecast
+  without rebuilding forecast formulas.
 
-## Optional embeddable calculator
+## Open decisions
 
-After the deterministic engine passes every golden scenario, the first UI
-delivery should be an optional, controlled React component package rather
-than a required API client or branded application. Its initial workflow
-includes:
+- Whether authoritative Tanso source APIs will support an automatic connector
+- Chart rendering dependency and bundle-size budget
+- License and package-release process
+- Minimum browser support
+- Whether committed non-React adopters justify a Web Component
+- Evidence and thresholds for customer-understanding success
 
-1. business and economic assumptions;
-2. a metric and workload editor;
-3. low, base, and high scenarios;
-4. recommended credit weights;
-5. cost-floor and value-supported ranges;
-6. warnings for economically infeasible configurations;
-7. calculation traces that explain each recommendation; and
-8. JSON and CSV export actions.
-
-The host injects estimation and export behavior. It may execute the core in
-the browser, call any compatible estimator API, or embed the components in an
-adopting product. The generic UI owns no authentication, networking, storage,
-billing, or product-specific actions. The UI invokes estimation only after an
-explicit **Calculate** submission, passes an `AbortSignal`, and rejects stale
-responses by request sequence. Editing never causes an estimator call.
-
-Export actions come from a host-supplied list of exporters, so the calculator
-renders only formats that are actually configured. Tanso publication controls
-belong in the optional `packages/ui-tanso-react` package; the headless
-`packages/adapters/tanso` package remains free of React.
-
-The package should expose composable controlled components, use neutral
-default terminology, support CSS-variable theming, and meet keyboard,
-semantic-markup, focus-management, and responsive-layout requirements. A Web
-Component wrapper is deferred until at least two committed non-React adopters
-cannot reasonably use the React package.
-
-## Approved UI delivery constraints
-
-- Publish the generic React package as `@tansohq/credit-calculator-react`.
-- Support React peer versions exercised in CI, initially
-  `^18.2.0 || ^19.0.0`.
-- Use stable semantic CSS custom properties prefixed
-  `--credit-calculator-*`, class names prefixed `credit-calculator-*`,
-  low-specificity selectors, and no global reset.
-- Package import must be SSR-safe and must not access `window` or `document`
-  at module scope.
-- Provide neutral English defaults through an injectable, typed `messages`
-  contract with an exhaustive first-version key set for labels, help, status,
-  result, and error text.
-- Keep `packages/adapters/tanso` headless and place optional React publication
-  controls in `packages/ui-tanso-react`.
-
-## Decisions that must remain explicit
-
-- Portable runtime targets beyond Node.js 20+ and modern browsers
-- Repository license
-- Accepted CSV dialect and lossless round-trip guarantees
-- Context fields allowed to influence quote rules
-- Model signature, provenance, and rollback requirements
-- Acceptable forecast error and calibration thresholds
-- Required evidence for confidence scores
-- Target users and committed design partners
-
-See [architecture.md](architecture.md) for package and data-flow boundaries and
-[ADR-001](architecture/decisions/ADR-001-provider-neutral-core.md) for the
-provider-neutral decision. The injected UI boundary is recorded in
-[ADR-002](architecture/decisions/ADR-002-injected-react-ui.md).
+See [methodology.md](methodology.md) for formula semantics,
+[architecture.md](architecture.md) for dependencies and data flow, and
+[tanso-integration.md](tanso-integration.md) for the optional Tanso boundary.

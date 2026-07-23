@@ -1,43 +1,47 @@
 # Golden Scenarios
 
-These fixtures are executable product requirements for the estimator.
+These fixtures are executable acceptance criteria for the deterministic
+customer-facing credit usage and burndown forecaster.
 
-Each file contains:
+Every fixture contains:
 
-- a fixture-level `schemaVersion`, `methodologyVersion`, and `modelVersion`;
-- the assumptions and metric inputs;
-- the same three explicit versions in the calculation input;
-- an expected output envelope that asserts all three versions unchanged;
-- expected calculated values; and
-- behavioral assertions.
+- fixture-level `schemaVersion` and `methodologyVersion`;
+- the same versions in `input`;
+- explicit date-only period boundaries and `asOf`;
+- complete observed daily history for `[period.startDate, asOf)` unless the
+  fixture intentionally tests validation;
+- an explicit lookback, balance, future schedule, and ordered low/base/high
+  scenarios; and
+- an `expected` output subset or `expectedError` subset.
 
-The repetition is intentional. A fixture runner must reject a fixture when
-the fixture metadata, calculation input, and expected output versions differ.
-A draft `modelVersion` labels the assumption snapshot under test; it does not
-imply that the model is approved or published.
-Fixture `modelVersion` values are unique across the suite; reuse for different
-calculation-relevant inputs is invalid.
+A fixture runner must recursively compare each expected subset with the actual
+result. Fields omitted from `expected` are not optional output fields; they are
+simply outside that fixture's assertion focus. Every successful calculation is
+still required to return the complete methodology-defined output, including
+all projected points and calculation traces.
 
-The initial engine should load every fixture and verify the expected result
-without network access. Currency calculations should use decimal-safe
-arithmetic.
+Fixture metadata, input, and result versions must match. There is no
+`modelVersion` in this contract.
 
-The fixtures cover:
+Portable JSON represents all credit amounts, balances, multipliers,
+utilization values, and decimal trace operands/results as canonical base-10
+strings. Integer counts such as `lookbackDays`, `daysRemaining`, and
+`repeatCount` remain JSON integers.
 
-- a one-credit summarization action;
-- a value-supported deep-research action;
-- provider and total unit cost from explicit cost components;
-- confidence-adjusted value from estimated value and evidence confidence;
-- monthly volume from customer/workload drivers;
-- an economically infeasible action;
-- zero monthly usage;
-- ordered low/base/high scenarios;
-- plan allocation with an explicit buffer;
-- a structured calculation trace;
-- deterministic repeated execution; and
-- provider-independent offline execution.
+The suite covers:
 
-Direct and decomposed economic inputs are deliberately covered separately.
-All fixtures include the required `planAllocationBuffer`, even when the
-scenario does not request a plan recommendation, so validation never depends
-on a hidden financial default.
+- steady on-track burn;
+- exact and negative depletion;
+- zero observed and projected usage;
+- low-balance threshold equality;
+- a scheduled positive balance delta that restores balance after depletion;
+- simultaneous depletion and low-ending-balance warnings after recovery;
+- a scheduled expiration before daily burn;
+- changing observed usage, a short lookback, and scenario ordering;
+- repeating-decimal rounding at the methodology precision boundary;
+- observed cumulative points, projected chart points, and ordered traces;
+- deterministic repeated offline execution; and
+- rejection of incomplete daily history.
+
+Implementations must load every fixture and verify it without network access,
+credentials, the system clock, or binary floating-point arithmetic.
