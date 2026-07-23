@@ -6,6 +6,7 @@ import {
   parseForecastInputCsv,
 } from "@tansohq/credit-forecast-csv";
 import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import { defaultCreditBurndownMessages } from "@tansohq/credit-burndown-react";
 import {
   parseForecastInput,
   serializeForecastInput,
@@ -309,7 +310,11 @@ describe("reference demo", () => {
     const endingBalanceLabel = screen.getByText("Projected ending balance", { selector: "span" });
     const endingBalanceItem = endingBalanceLabel.parentElement;
     if (endingBalanceItem === null) throw new Error("Ending balance summary is missing");
-    expect(within(endingBalanceItem).getByText(`${expectedBase.endingBalance} credits`)).toBeVisible();
+    expect(
+      within(endingBalanceItem).getByText(
+        defaultCreditBurndownMessages.creditsValue(expectedBase.endingBalance),
+      ),
+    ).toBeVisible();
   });
 
   it("round-trips commas and newlines in scheduled reasons through JSON and CSV", () => {
