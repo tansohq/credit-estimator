@@ -1,5 +1,5 @@
 {
-  "name": "@tansohq/credit-forecast-csv",
+  "name": "@tanso-hq/credit-forecast-csv",
   "version": "0.1.0",
   "description": "Portable RFC 4180 CSV import and export for credit forecasts",
   "type": "module",
@@ -31,7 +31,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tansohq/credit-forecast-schema": "workspace:*"
+    "@tanso-hq/credit-forecast-schema": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

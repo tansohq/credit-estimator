@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import type { ForecastInput } from "@tansohq/credit-forecast-schema";
+import type { ForecastInput } from "@tanso-hq/credit-forecast-schema";
 import { describe, expect, it } from "vitest";
 
 import { ForecastValidationError, forecastCreditUsage } from "../src/index.js";

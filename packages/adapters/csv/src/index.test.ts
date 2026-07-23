@@ -1,4 +1,4 @@
-import type { ForecastInput, ForecastResult } from "@tansohq/credit-forecast-schema";
+import type { ForecastInput, ForecastResult } from "@tanso-hq/credit-forecast-schema";
 import { describe, expect, it } from "vitest";
 
 import {

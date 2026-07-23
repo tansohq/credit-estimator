@@ -1,5 +1,5 @@
 {
-  "name": "@tansohq/credit-forecast-core",
+  "name": "@tanso-hq/credit-forecast-core",
   "version": "0.1.0",
   "description": "Deterministic provider-neutral credit usage forecasting engine",
   "type": "module",
@@ -30,7 +30,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tansohq/credit-forecast-schema": "workspace:*",
+    "@tanso-hq/credit-forecast-schema": "workspace:*",
     "decimal.js": "^10.4.3"
   },
   "devDependencies": {

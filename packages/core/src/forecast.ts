@@ -10,7 +10,7 @@ import type {
   ScenarioForecast,
   ScenarioKey,
   SourceInputTrace,
-} from "@tansohq/credit-forecast-schema";
+} from "@tanso-hq/credit-forecast-schema";
 import { Decimal } from "decimal.js";
 
 import { calendarDates } from "./calendar.js";

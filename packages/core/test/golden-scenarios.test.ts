@@ -5,7 +5,7 @@ import {
   ForecastResultSchema,
   type ForecastInput,
   type ForecastValidationFailure,
-} from "@tansohq/credit-forecast-schema";
+} from "@tanso-hq/credit-forecast-schema";
 import { describe, expect, it } from "vitest";
 
 import { ForecastValidationError, forecastCreditUsage } from "../src/index.js";

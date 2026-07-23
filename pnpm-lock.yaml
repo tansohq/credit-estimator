@@ -56,19 +56,19 @@ importers:
 
   apps/demo:
     dependencies:
-      '@tansohq/credit-burndown-react':
+      '@tanso-hq/credit-burndown-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
-      '@tansohq/credit-forecast-core':
+      '@tanso-hq/credit-forecast-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tansohq/credit-forecast-csv':
+      '@tanso-hq/credit-forecast-csv':
         specifier: workspace:*
         version: link:../../packages/adapters/csv
-      '@tansohq/credit-forecast-json':
+      '@tanso-hq/credit-forecast-json':
         specifier: workspace:*
         version: link:../../packages/adapters/json
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../../packages/schema
       react:
@@ -93,7 +93,7 @@ importers:
 
   packages/adapters/csv:
     dependencies:
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../../schema
     devDependencies:
@@ -103,7 +103,7 @@ importers:
 
   packages/adapters/json:
     dependencies:
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../../schema
     devDependencies:
@@ -113,14 +113,14 @@ importers:
 
   packages/adapters/tanso:
     dependencies:
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../../schema
       zod:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
-      '@tansohq/credit-forecast-core':
+      '@tanso-hq/credit-forecast-core':
         specifier: workspace:*
         version: link:../../core
       typescript:
@@ -129,7 +129,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../schema
       decimal.js:
@@ -152,7 +152,7 @@ importers:
 
   packages/ui-react:
     dependencies:
-      '@tansohq/credit-forecast-schema':
+      '@tanso-hq/credit-forecast-schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:

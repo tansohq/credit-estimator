@@ -1,21 +1,21 @@
 {
-  "name": "@tansohq/credit-forecast-demo",
+  "name": "@tanso-hq/credit-forecast-demo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build:dependencies": "pnpm --filter @tansohq/credit-forecast-schema build && pnpm --filter @tansohq/credit-forecast-core build && pnpm --filter @tansohq/credit-forecast-json build && pnpm --filter @tansohq/credit-forecast-csv build && pnpm --filter @tansohq/credit-burndown-react build",
+    "build:dependencies": "pnpm --filter @tanso-hq/credit-forecast-schema build && pnpm --filter @tanso-hq/credit-forecast-core build && pnpm --filter @tanso-hq/credit-forecast-json build && pnpm --filter @tanso-hq/credit-forecast-csv build && pnpm --filter @tanso-hq/credit-burndown-react build",
     "build": "vite build",
     "predev": "pnpm build:dependencies",
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tansohq/credit-burndown-react": "workspace:*",
-    "@tansohq/credit-forecast-core": "workspace:*",
-    "@tansohq/credit-forecast-csv": "workspace:*",
-    "@tansohq/credit-forecast-json": "workspace:*",
-    "@tansohq/credit-forecast-schema": "workspace:*",
+    "@tanso-hq/credit-burndown-react": "workspace:*",
+    "@tanso-hq/credit-forecast-core": "workspace:*",
+    "@tanso-hq/credit-forecast-csv": "workspace:*",
+    "@tanso-hq/credit-forecast-json": "workspace:*",
+    "@tanso-hq/credit-forecast-schema": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

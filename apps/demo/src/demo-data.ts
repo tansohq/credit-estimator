@@ -1,9 +1,9 @@
-import { parseAndValidateForecastInput } from "@tansohq/credit-forecast-core";
+import { parseAndValidateForecastInput } from "@tanso-hq/credit-forecast-core";
 import type {
   ForecastInput,
   NamespacedExtensions,
   ValidationIssue,
-} from "@tansohq/credit-forecast-schema";
+} from "@tanso-hq/credit-forecast-schema";
 
 export interface ForecastDraft {
   readonly schemaVersion: string;

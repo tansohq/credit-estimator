@@ -1,5 +1,5 @@
 {
-  "name": "@tansohq/credit-forecast-schema",
+  "name": "@tanso-hq/credit-forecast-schema",
   "version": "0.1.0",
   "description": "Provider-neutral Zod schemas for deterministic credit usage forecasts",
   "type": "module",

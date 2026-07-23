@@ -97,12 +97,12 @@ prove the architecture.
 
 | Package | Proposed package name | Owns | Must not own |
 |---|---|---|---|
-| `packages/schema` | `@tansohq/credit-forecast-schema` | Versioned neutral input, result, warning, trace, and validation-error contracts | Formulas, I/O, React, product identifiers |
-| `packages/core` | `@tansohq/credit-forecast-core` | Validation orchestration, decimal-safe forecast calculations, warnings, traces | Network, filesystem, credentials, React, adapters, product state |
-| `packages/ui-react` | `@tansohq/credit-burndown-react` | Controlled, composable, accessible forecast presentation | Fetching, estimation, authentication, persistence, billing, formulas |
-| `packages/adapters/json` | `@tansohq/credit-forecast-json` | Lossless neutral snapshot/result serialization | Forecast policy |
-| `packages/adapters/csv` | `@tansohq/credit-forecast-csv` | Documented tabular import/export and structured import errors | Hidden defaults, formulas |
-| `packages/adapters/tanso` | `@tansohq/credit-forecast-tanso` | Pure validation and mapping of host-supplied Tanso forecast data into `ForecastInput` | Fetching, credentials, aggregation, inference, sorting, defaults, formulas, React |
+| `packages/schema` | `@tanso-hq/credit-forecast-schema` | Versioned neutral input, result, warning, trace, and validation-error contracts | Formulas, I/O, React, product identifiers |
+| `packages/core` | `@tanso-hq/credit-forecast-core` | Validation orchestration, decimal-safe forecast calculations, warnings, traces | Network, filesystem, credentials, React, adapters, product state |
+| `packages/ui-react` | `@tanso-hq/credit-burndown-react` | Controlled, composable, accessible forecast presentation | Fetching, estimation, authentication, persistence, billing, formulas |
+| `packages/adapters/json` | `@tanso-hq/credit-forecast-json` | Lossless neutral snapshot/result serialization | Forecast policy |
+| `packages/adapters/csv` | `@tanso-hq/credit-forecast-csv` | Documented tabular import/export and structured import errors | Hidden defaults, formulas |
+| `packages/adapters/tanso` | `@tanso-hq/credit-forecast-tanso` | Pure validation and mapping of host-supplied Tanso forecast data into `ForecastInput` | Fetching, credentials, aggregation, inference, sorting, defaults, formulas, React |
 | `apps/demo` | Not published | Reference local calculation and widget composition | New domain behavior |
 
 ## Dependency direction

@@ -4,13 +4,13 @@ import "@testing-library/jest-dom/vitest";
 import {
   exportForecastInputCsv,
   parseForecastInputCsv,
-} from "@tansohq/credit-forecast-csv";
-import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
-import { defaultCreditBurndownMessages } from "@tansohq/credit-burndown-react";
+} from "@tanso-hq/credit-forecast-csv";
+import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
+import { defaultCreditBurndownMessages } from "@tanso-hq/credit-burndown-react";
 import {
   parseForecastInput,
   serializeForecastInput,
-} from "@tansohq/credit-forecast-json";
+} from "@tanso-hq/credit-forecast-json";
 import {
   act,
   cleanup,
@@ -115,9 +115,9 @@ describe("reference demo", () => {
     expect((screen.getByLabelText("Complete history") as HTMLTextAreaElement).value)
       .toContain("2026-07-14,56");
     const integration = (screen.getByLabelText("Integration example") as HTMLTextAreaElement).value;
-    expect(integration).toContain('import { forecastCreditUsage } from "@tansohq/credit-forecast-core";');
-    expect(integration).toContain('import { CreditBurndownView } from "@tansohq/credit-burndown-react";');
-    expect(integration).toContain('import "@tansohq/credit-burndown-react/styles.css";');
+    expect(integration).toContain('import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";');
+    expect(integration).toContain('import { CreditBurndownView } from "@tanso-hq/credit-burndown-react";');
+    expect(integration).toContain('import "@tanso-hq/credit-burndown-react/styles.css";');
     expect(integration).toContain("export function UsageForecast");
     expect(integration).toContain("const result = forecastCreditUsage(input);");
     expect(integration).toContain("<CreditBurndownView input={input} result={result} />");

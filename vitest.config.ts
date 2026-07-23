@@ -7,9 +7,9 @@ const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export default defineConfig({
   resolve: {
     alias: {
-      "@tansohq/credit-burndown-react": fromRoot("./packages/ui-react/src/index.ts"),
-      "@tansohq/credit-forecast-core": fromRoot("./packages/core/src/index.ts"),
-      "@tansohq/credit-forecast-schema": fromRoot("./packages/schema/src/index.ts"),
+      "@tanso-hq/credit-burndown-react": fromRoot("./packages/ui-react/src/index.ts"),
+      "@tanso-hq/credit-forecast-core": fromRoot("./packages/core/src/index.ts"),
+      "@tanso-hq/credit-forecast-schema": fromRoot("./packages/schema/src/index.ts"),
     },
   },
   test: {

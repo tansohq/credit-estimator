@@ -2,9 +2,9 @@ import {
   CsvImportError,
   parseForecastInputCsv,
   type CsvBundle,
-} from "@tansohq/credit-forecast-csv";
-import { parseForecastInput } from "@tansohq/credit-forecast-json";
-import type { ForecastInput } from "@tansohq/credit-forecast-schema";
+} from "@tanso-hq/credit-forecast-csv";
+import { parseForecastInput } from "@tanso-hq/credit-forecast-json";
+import type { ForecastInput } from "@tanso-hq/credit-forecast-schema";
 
 export async function readForecastInputJson(file: File): Promise<ForecastInput> {
   return parseForecastInput(await file.text());

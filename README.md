@@ -30,12 +30,12 @@ MVP.
 
 | Package | Purpose |
 |---|---|
-| `@tansohq/credit-forecast-schema` | Provider-neutral Zod schemas and TypeScript contracts |
-| `@tansohq/credit-forecast-core` | Browser-compatible deterministic calculations |
-| `@tansohq/credit-burndown-react` | Controlled, accessible React components |
-| `@tansohq/credit-forecast-json` | Deterministic JSON import and export |
-| `@tansohq/credit-forecast-csv` | Portable multi-file CSV import and export |
-| `@tansohq/credit-forecast-tanso` | Pure optional Tanso snapshot-to-neutral mapping |
+| `@tanso-hq/credit-forecast-schema` | Provider-neutral Zod schemas and TypeScript contracts |
+| `@tanso-hq/credit-forecast-core` | Browser-compatible deterministic calculations |
+| `@tanso-hq/credit-burndown-react` | Controlled, accessible React components |
+| `@tanso-hq/credit-forecast-json` | Deterministic JSON import and export |
+| `@tanso-hq/credit-forecast-csv` | Portable multi-file CSV import and export |
+| `@tanso-hq/credit-forecast-tanso` | Pure optional Tanso snapshot-to-neutral mapping |
 
 These packages currently live in this pnpm workspace and are not published to
 npm yet.
@@ -56,7 +56,7 @@ pnpm install
 ## Run the standalone library
 
 ```ts
-import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
 
 const result = forecastCreditUsage({
   schemaVersion: "1.0",
@@ -105,9 +105,9 @@ passes both objects to the result-controlled component. A host may instead
 calculate on its own backend and pass the same result to its frontend.
 
 ```tsx
-import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
-import { CreditBurndown } from "@tansohq/credit-burndown-react";
-import "@tansohq/credit-burndown-react/styles.css";
+import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
+import { CreditBurndown } from "@tanso-hq/credit-burndown-react";
+import "@tanso-hq/credit-burndown-react/styles.css";
 
 const result = forecastCreditUsage(input);
 
@@ -127,16 +127,16 @@ React peers are `^18.2 || ^19`.
 
 ## Optional Tanso integration
 
-`@tansohq/credit-forecast-tanso` maps two host-supplied objects into the same
+`@tanso-hq/credit-forecast-tanso` maps two host-supplied objects into the same
 validated `ForecastInput` used by every other host. Within this workspace:
 
 ```ts
-import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
 import {
   mapTansoSnapshotToForecastInput,
   type TansoForecastAssumptions,
   type TansoForecastSnapshot,
-} from "@tansohq/credit-forecast-tanso";
+} from "@tanso-hq/credit-forecast-tanso";
 
 const snapshot: TansoForecastSnapshot = {
   sourceSchemaVersion: "1.0",
@@ -194,11 +194,11 @@ outside the adapter, core, and React packages. See the
 import {
   parseForecastInput,
   serializeForecastResult,
-} from "@tansohq/credit-forecast-json";
+} from "@tanso-hq/credit-forecast-json";
 import {
   exportForecastInputCsv,
   parseForecastResultCsv,
-} from "@tansohq/credit-forecast-csv";
+} from "@tanso-hq/credit-forecast-csv";
 ```
 
 The JSON adapter emits stable, key-sorted JSON. The CSV adapter uses an

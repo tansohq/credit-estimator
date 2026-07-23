@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "demo": "pnpm --filter @tansohq/credit-forecast-demo dev",
+    "demo": "pnpm --filter @tanso-hq/credit-forecast-demo dev",
     "pretypecheck": "pnpm build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

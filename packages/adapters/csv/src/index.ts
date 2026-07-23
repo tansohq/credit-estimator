@@ -6,7 +6,7 @@ import {
   type ForecastWarning,
   type ScenarioForecast,
   type TraceValue,
-} from "@tansohq/credit-forecast-schema";
+} from "@tanso-hq/credit-forecast-schema";
 
 export type CsvBundle = Readonly<Record<string, string>>;
 
