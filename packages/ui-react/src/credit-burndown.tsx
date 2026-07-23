@@ -283,7 +283,9 @@ export function CreditBurndownScenarios({ className }: CreditBurndownSectionProp
 
 interface ChartCoordinates {
   points: string;
+  areaPath: string;
   zeroY: number;
+  thresholdY: number;
   firstX: number;
   firstY: number;
   lastX: number;
@@ -305,15 +307,17 @@ function decimalToScaledInteger(value: string): bigint {
 
 function chartCoordinates(
   values: readonly string[],
+  thresholdValue: string,
   left: number,
   right: number,
   top: number,
   bottom: number,
 ): ChartCoordinates {
   const scaledValues = values.map(decimalToScaledInteger);
+  const scaledThreshold = decimalToScaledInteger(thresholdValue);
   let minimum = 0n;
   let maximum = 0n;
-  for (const value of scaledValues) {
+  for (const value of [...scaledValues, scaledThreshold]) {
     if (value < minimum) minimum = value;
     if (value > maximum) maximum = value;
   }
@@ -335,9 +339,19 @@ function chartCoordinates(
     throw new Error("Chart requires at least one projected balance value");
   }
 
+  const zeroY = y(0n);
+  const areaPath = [
+    `M ${first.x},${zeroY}`,
+    ...projectedPoints.map(({ x, y: pointY }) => `L ${x},${pointY}`),
+    `L ${last.x},${zeroY}`,
+    "Z",
+  ].join(" ");
+
   return {
     points: projectedPoints.map(({ x, y: pointY }) => `${x},${pointY}`).join(" "),
-    zeroY: y(0n),
+    areaPath,
+    zeroY,
+    thresholdY: y(scaledThreshold),
     firstX: first.x,
     firstY: first.y,
     lastX: last.x,
@@ -361,10 +375,14 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
   const totalDayCount = observedDayCount + result.daysRemaining;
   const forecastStartRatio = observedDayCount / totalDayCount;
   const forecastStartX = chartLeft + forecastStartRatio * timelineWidth;
-  const coordinates = chartCoordinates([
-    input.balance.current,
-    ...selectedScenario.points.map(({ endingBalance }) => endingBalance),
-  ], forecastStartX, chartRight, 36, 142);
+  const coordinates = chartCoordinates(
+    [input.balance.current, ...selectedScenario.points.map(({ endingBalance }) => endingBalance)],
+    input.period.lowBalanceThreshold,
+    forecastStartX,
+    chartRight,
+    36,
+    142,
+  );
   const observedValues = result.observedPoints.map(({ creditsUsed }) =>
     decimalToScaledInteger(creditsUsed));
   const maximumObserved = observedValues.reduce(
@@ -441,6 +459,7 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
               y={204 - height}
               width={observedBarWidth}
               height={height}
+              rx={observedBarWidth / 2}
               key={result.observedPoints[index]?.date}
             />
           );
@@ -452,6 +471,14 @@ export function CreditBurndownChart({ className }: CreditBurndownSectionProps) {
           y1={coordinates.zeroY}
           y2={coordinates.zeroY}
         />
+        <line
+          className="credit-burndown-chart-threshold"
+          x1={forecastStartX}
+          x2={chartRight}
+          y1={coordinates.thresholdY}
+          y2={coordinates.thresholdY}
+        />
+        <path className="credit-burndown-chart-area" d={coordinates.areaPath} />
         <polyline
           className="credit-burndown-chart-line"
           points={coordinates.points}

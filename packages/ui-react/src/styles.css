@@ -340,6 +340,11 @@
   vector-effect: non-scaling-stroke;
 }
 
+:where(.credit-burndown-chart-area) {
+  fill: color-mix(in srgb, currentColor 16%, transparent);
+  stroke: none;
+}
+
 :where(.credit-burndown-root[data-credit-burndown-status="LOW_BALANCE_PROJECTED"] .credit-burndown-chart-line),
 :where(.credit-burndown-root[data-credit-burndown-status="LOW_BALANCE_PROJECTED"] .credit-burndown-chart-point) {
   color: var(--credit-burndown-low-balance);
@@ -350,6 +355,14 @@
 :where(.credit-burndown-root[data-credit-burndown-status="DEPLETION_PROJECTED"] .credit-burndown-chart-point) {
   color: var(--credit-burndown-depletion);
   fill: var(--credit-burndown-depletion);
+}
+
+:where(.credit-burndown-root[data-credit-burndown-status="LOW_BALANCE_PROJECTED"] .credit-burndown-chart-area) {
+  color: var(--credit-burndown-low-balance);
+}
+
+:where(.credit-burndown-root[data-credit-burndown-status="DEPLETION_PROJECTED"] .credit-burndown-chart-area) {
+  color: var(--credit-burndown-depletion);
 }
 
 :where(.credit-burndown-chart-point) {
@@ -363,6 +376,13 @@
   stroke: var(--credit-burndown-depletion);
   stroke-width: 1px;
   stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+}
+
+:where(.credit-burndown-chart-threshold) {
+  stroke: var(--credit-burndown-low-balance);
+  stroke-width: 1px;
+  stroke-dasharray: 2 3;
   vector-effect: non-scaling-stroke;
 }
 
@@ -632,7 +652,9 @@
   :where(.credit-burndown-root),
   :where(.credit-burndown-scenario[data-credit-burndown-selected="true"]),
   :where(.credit-burndown-chart-line),
+  :where(.credit-burndown-chart-area),
   :where(.credit-burndown-chart-zero),
+  :where(.credit-burndown-chart-threshold),
   :where(.credit-burndown-chart-forecast-start),
   :where(.credit-burndown-warning) {
     forced-color-adjust: auto;
