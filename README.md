@@ -37,8 +37,12 @@ MVP.
 | `@tanso-hq/credit-forecast-csv` | Portable multi-file CSV import and export |
 | `@tanso-hq/credit-forecast-tanso` | Pure optional Tanso snapshot-to-neutral mapping |
 
-These packages currently live in this pnpm workspace and are not published to
-npm yet.
+All six packages are published to npm under the `@tanso-hq` scope at version
+`0.1.0`. Install only what you need, for example:
+
+```bash
+npm install @tanso-hq/credit-forecast-core @tanso-hq/credit-burndown-react
+```
 
 Packages are ESM-only. CommonJS hosts must use dynamic `import()`.
 
