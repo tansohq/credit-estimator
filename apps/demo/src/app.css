@@ -334,6 +334,7 @@ textarea,
   border: 1px solid #9baabd;
   border-radius: 0.2rem;
   padding: 0.62rem 0.7rem;
+  min-block-size: 2.75rem;
   color: var(--demo-navy);
   background: var(--demo-white);
   font-size: 0.78rem;
@@ -417,6 +418,7 @@ textarea,
 .demo-widget-action {
   border: 1px solid var(--demo-cobalt);
   padding: 0.72rem 1rem;
+  min-block-size: 2.75rem;
   color: var(--demo-white);
   background: var(--demo-cobalt);
   font-weight: 760;
@@ -470,6 +472,7 @@ textarea,
   margin-inline-end: 0.5rem;
   border: 1px solid #9baabd;
   padding: 0.45rem 0.6rem;
+  min-block-size: 2.75rem;
   color: var(--demo-navy);
   background: var(--demo-white);
   font-weight: 650;
@@ -525,6 +528,7 @@ textarea,
   flex: none;
   border: 1px solid #9baabd;
   padding: 0.4rem 0.55rem;
+  min-block-size: 2.75rem;
   color: var(--demo-navy);
   background: var(--demo-white);
   font-size: 0.66rem;
@@ -608,6 +612,7 @@ textarea,
 
 .demo-widget-action {
   padding: 0.52rem 0.75rem;
+  min-block-size: 2.75rem;
   font-size: 0.72rem;
 }
 
