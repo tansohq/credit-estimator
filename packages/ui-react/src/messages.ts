@@ -65,6 +65,7 @@ export const defaultCreditBurndownMessages: CreditBurndownMessages = {
       DEPLETION_PROJECTED: "Depletion projected",
     })[status],
   creditsValue: (value) => `${roundDecimal(value)} credits`,
+  scenarioBalanceValue: (value) => roundDecimal(value),
   utilizationValue: (value) => `${roundDecimal(value)}× allocation`,
   dayCount: (count) => `${count} ${count === 1 ? "day" : "days"}`,
   periodValue: (startDate, endDate) => `${startDate} to ${endDate} (end exclusive)`,

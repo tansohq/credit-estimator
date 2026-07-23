@@ -257,7 +257,7 @@ export function CreditBurndownScenarios({ className }: CreditBurndownSectionProp
               />
               <span className="credit-burndown-scenario-label">{label}</span>
               <span className="credit-burndown-scenario-balance">
-                {messages.creditsValue(scenario.endingBalance)}
+                {messages.scenarioBalanceValue(scenario.endingBalance)}
               </span>
               <span id={detailsId} className="credit-burndown-sr-only">
                 <span className={statusClass(scenario.status)}>

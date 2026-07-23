@@ -70,6 +70,7 @@ const preChangeLocale: CreditBurndownMessages = {
     DEPLETION_PROJECTED: "Agotamiento previsto",
   })[status],
   creditsValue: (value) => `${value} créditos`,
+  scenarioBalanceValue: (value) => value,
   utilizationValue: (value) => `${value}× asignación`,
   dayCount: (count) => `${count} días`,
   periodValue: (startDate, endDate) => `${startDate} a ${endDate}`,
