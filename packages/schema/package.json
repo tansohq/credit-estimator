@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tansohq/credit-estimator.git",
@@ -38,5 +40,6 @@
   "engines": {
     "node": ">=20"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

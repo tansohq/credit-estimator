@@ -17,7 +17,9 @@
     "verify:packages": "node scripts/verify-packages.mjs"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.9.1",
@@ -35,5 +37,6 @@
     "typescript": "^5.7.2",
     "vite": "^6.4.3",
     "vitest": "^4.1.7"
-  }
+  },
+  "license": "MIT"
 }
