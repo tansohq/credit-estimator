@@ -148,14 +148,14 @@ versioned only by `schemaVersion` and `methodologyVersion`.
 
 Target packages:
 
-- `@tanso-hq/credit-forecast-schema`: browser-compatible neutral inputs,
+- `@tansohq/credit-forecast-schema`: browser-compatible neutral inputs,
   results, warnings, traces, and validation errors;
-- `@tanso-hq/credit-forecast-core`: validation orchestration, decimal-safe
+- `@tansohq/credit-forecast-core`: validation orchestration, decimal-safe
   calculations, warnings, and traces;
-- `@tanso-hq/credit-burndown-react`: optional controlled React components for
+- `@tansohq/credit-burndown-react`: optional controlled React components for
   embedding the forecast in a customer dashboard;
 - delivery adapters for JSON and CSV snapshots; and
-- `@tanso-hq/credit-forecast-tanso`: optional pure mapping from an
+- `@tansohq/credit-forecast-tanso`: optional pure mapping from an
   already-fetched Tanso forecast snapshot and explicit host assumptions into
   neutral `ForecastInput`.
 
@@ -188,7 +188,7 @@ Dependency rules:
 
 1. Define neutral schemas and deterministic methodology.
 2. Make every golden fixture pass in the pure core.
-3. Build `@tanso-hq/credit-burndown-react` as the primary customer-facing MVP.
+3. Build `@tansohq/credit-burndown-react` as the primary customer-facing MVP.
 4. Add JSON and CSV import/export adapters.
 5. Build the local reference demo.
 6. Add optional product adapters only after their host data contracts are

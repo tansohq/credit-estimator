@@ -163,9 +163,9 @@ creates, schedules, or executes that balance change.
 ### Primary MVP delivery
 
 The primary MVP implements an embeddable React package as
-`@tanso-hq/credit-burndown-react`, the calculation package as
-`@tanso-hq/credit-forecast-core`, and its neutral contracts as
-`@tanso-hq/credit-forecast-schema`. Registry publication remains a release
+`@tansohq/credit-burndown-react`, the calculation package as
+`@tansohq/credit-forecast-core`, and its neutral contracts as
+`@tansohq/credit-forecast-schema`. Registry publication remains a release
 step.
 
 The React package should let customers see:
@@ -269,8 +269,8 @@ not use `modelVersion`.
 - Summary values and daily chart points agree.
 - Depletion dates, shortfalls, statuses, and warnings are traceable to ordered
   calculation steps.
-- `@tanso-hq/credit-forecast-core` runs in a browser without product SDKs.
-- `@tanso-hq/credit-burndown-react` can be embedded without Tanso and without
+- `@tansohq/credit-forecast-core` runs in a browser without product SDKs.
+- `@tansohq/credit-burndown-react` can be embedded without Tanso and without
   owning authentication, networking, persistence, billing, or CTA behavior.
 - The optional Tanso mapping adapter can be removed without changing neutral
   schemas, core calculations, JSON/CSV exchange, or the React UI.

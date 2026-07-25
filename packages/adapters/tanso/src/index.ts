@@ -5,7 +5,7 @@ import {
   type DecimalString,
   type ForecastInput,
   type ISODate,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 import { z } from "zod";
 
 export interface TansoForecastSnapshot {

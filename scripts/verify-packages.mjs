@@ -76,7 +76,7 @@ try {
   const coreDependencies = Object.keys(coreManifest.dependencies ?? {}).sort();
   if (
     JSON.stringify(coreDependencies) !==
-    JSON.stringify(["@tanso-hq/credit-forecast-schema", "decimal.js"])
+    JSON.stringify(["@tansohq/credit-forecast-schema", "decimal.js"])
   ) {
     fail("packages/core: unexpected production dependency");
   }
@@ -85,7 +85,7 @@ try {
     readFileSync(join(root, "packages/ui-react/package.json"), "utf8"),
   );
   const uiDependencies = Object.keys(uiManifest.dependencies ?? {}).sort();
-  if (JSON.stringify(uiDependencies) !== JSON.stringify(["@tanso-hq/credit-forecast-schema"])) {
+  if (JSON.stringify(uiDependencies) !== JSON.stringify(["@tansohq/credit-forecast-schema"])) {
     fail("packages/ui-react: core or adapter dependency detected");
   }
 
@@ -95,7 +95,7 @@ try {
   const tansoDependencies = Object.keys(tansoManifest.dependencies ?? {}).sort();
   if (
     JSON.stringify(tansoDependencies) !==
-    JSON.stringify(["@tanso-hq/credit-forecast-schema", "zod"])
+    JSON.stringify(["@tansohq/credit-forecast-schema", "zod"])
   ) {
     fail("packages/adapters/tanso: unexpected production dependency");
   }

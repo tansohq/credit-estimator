@@ -1,7 +1,7 @@
 import type {
   ForecastInput,
   ForecastResult,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 
 export const forecastInput: ForecastInput = {
   schemaVersion: "1.0",

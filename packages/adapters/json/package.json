@@ -1,5 +1,5 @@
 {
-  "name": "@tanso-hq/credit-forecast-json",
+  "name": "@tansohq/credit-forecast-json",
   "version": "0.1.0",
   "description": "Deterministic JSON import and export for portable credit forecasts",
   "type": "module",
@@ -31,7 +31,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tanso-hq/credit-forecast-schema": "workspace:*"
+    "@tansohq/credit-forecast-schema": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

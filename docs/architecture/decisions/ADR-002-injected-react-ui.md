@@ -49,7 +49,7 @@ fetch forecasts, or render versioned results controlled by its host.
 
 **Chosen option:** Result-controlled UI.
 
-Publish the generic package as `@tanso-hq/credit-burndown-react`. React is a
+Publish the generic package as `@tansohq/credit-burndown-react`. React is a
 peer dependency with initial support for `^18.2.0 || ^19.0.0`, limited to
 majors exercised in CI.
 
@@ -66,7 +66,7 @@ The primary composition contract is:
 ```
 
 `ForecastInput` and `ForecastResult` are provider-neutral contracts exported
-by `@tanso-hq/credit-forecast-schema`. The host supplies both objects. It may
+by `@tansohq/credit-forecast-schema`. The host supplies both objects. It may
 calculate `result` locally through the canonical core entry point:
 
 ```ts

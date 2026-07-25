@@ -1,5 +1,5 @@
 {
-  "name": "@tanso-hq/credit-burndown-react",
+  "name": "@tansohq/credit-burndown-react",
   "version": "0.1.0",
   "description": "Provider-neutral React components for credit usage and burndown forecasts",
   "type": "module",
@@ -37,7 +37,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
-    "@tanso-hq/credit-forecast-schema": "workspace:*"
+    "@tansohq/credit-forecast-schema": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0 || ^19.0.0",

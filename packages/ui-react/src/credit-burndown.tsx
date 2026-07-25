@@ -10,7 +10,7 @@ import type {
   ForecastWarning,
   ScenarioKey,
   TraceValue,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 
 import { CreditBurndownContext, useCreditBurndown } from "./context.js";
 import { resolveCreditBurndownMessages } from "./messages.js";

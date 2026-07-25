@@ -1,5 +1,5 @@
 {
-  "name": "@tanso-hq/credit-forecast-tanso",
+  "name": "@tansohq/credit-forecast-tanso",
   "version": "0.1.0",
   "description": "Optional pure Tanso snapshot adapter for provider-neutral credit forecasts",
   "type": "module",
@@ -31,11 +31,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tanso-hq/credit-forecast-schema": "workspace:*",
+    "@tansohq/credit-forecast-schema": "workspace:*",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@tanso-hq/credit-forecast-core": "workspace:*",
+    "@tansohq/credit-forecast-core": "workspace:*",
     "typescript": "^5.7.2"
   },
   "engines": {

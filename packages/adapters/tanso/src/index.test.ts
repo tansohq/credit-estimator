@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
-import type { ForecastInput } from "@tanso-hq/credit-forecast-schema";
+import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import type { ForecastInput } from "@tansohq/credit-forecast-schema";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -270,7 +270,7 @@ describe("Tanso snapshot adapter", () => {
     ) as { readonly dependencies?: Readonly<Record<string, string>> };
 
     expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual([
-      "@tanso-hq/credit-forecast-schema",
+      "@tansohq/credit-forecast-schema",
       "zod",
     ]);
   });

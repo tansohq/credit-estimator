@@ -8,7 +8,7 @@ import type {
   ForecastStatus,
   ScenarioForecast,
   ScenarioKey,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 
 export type CreditBurndownHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 

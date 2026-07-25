@@ -15,7 +15,7 @@ The boundary is:
 
 Removing the Tanso adapter must not affect local forecasting or the generic UI.
 
-The pure mapping package `@tanso-hq/credit-forecast-tanso` is implemented. It
+The pure mapping package `@tansohq/credit-forecast-tanso` is implemented. It
 maps a host-supplied `TansoForecastSnapshot` plus explicit
 `TansoForecastAssumptions` into validated neutral `ForecastInput`.
 
@@ -198,7 +198,7 @@ Neutral ForecastResult
         |
         | host passes controlled props
         v
-@tanso-hq/credit-burndown-react
+@tansohq/credit-burndown-react
 ```
 
 The host can perform all steps in its backend, in its frontend when safe, or

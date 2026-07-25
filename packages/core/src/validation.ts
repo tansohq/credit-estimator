@@ -3,7 +3,7 @@ import {
   type ForecastInput,
   type ForecastValidationFailure,
   type ValidationIssue,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 
 interface RawSchemaIssue {
   readonly code: string;

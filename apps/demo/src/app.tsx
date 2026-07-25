@@ -2,17 +2,17 @@ import {
   exportForecastInputCsv,
   exportForecastResultCsv,
   CsvImportError,
-} from "@tanso-hq/credit-forecast-csv";
+} from "@tansohq/credit-forecast-csv";
 import {
   forecastCreditUsage,
   ForecastValidationError,
-} from "@tanso-hq/credit-forecast-core";
+} from "@tansohq/credit-forecast-core";
 import {
   JsonImportError,
   serializeForecastInput,
   serializeForecastResult,
-} from "@tanso-hq/credit-forecast-json";
-import { CreditBurndownView } from "@tanso-hq/credit-burndown-react";
+} from "@tansohq/credit-forecast-json";
+import { CreditBurndownView } from "@tansohq/credit-burndown-react";
 import {
   useState,
   useRef,
@@ -47,10 +47,10 @@ interface UiIssue {
   readonly message: string;
 }
 
-const integrationCode = `import { forecastCreditUsage } from "@tanso-hq/credit-forecast-core";
-import { CreditBurndownView } from "@tanso-hq/credit-burndown-react";
-import "@tanso-hq/credit-burndown-react/styles.css";
-import type { ForecastInput } from "@tanso-hq/credit-forecast-schema";
+const integrationCode = `import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+import { CreditBurndownView } from "@tansohq/credit-burndown-react";
+import "@tansohq/credit-burndown-react/styles.css";
+import type { ForecastInput } from "@tansohq/credit-forecast-schema";
 
 export function UsageForecast({ input }: { input: ForecastInput }) {
   const result = forecastCreditUsage(input);

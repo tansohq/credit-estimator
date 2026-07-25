@@ -40,9 +40,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install React 18 compatibility dependencies
         run: >-
-          pnpm --filter @tanso-hq/credit-burndown-react add --save-dev
+          pnpm --filter @tansohq/credit-burndown-react add --save-dev
           --lockfile=false react@18.2.0 react-dom@18.2.0
           @types/react@18 @types/react-dom@18
-      - run: pnpm --filter @tanso-hq/credit-forecast-schema build
-      - run: pnpm --filter @tanso-hq/credit-burndown-react typecheck
-      - run: pnpm --filter @tanso-hq/credit-burndown-react test
+      - run: pnpm --filter @tansohq/credit-forecast-schema build
+      - run: pnpm --filter @tansohq/credit-burndown-react typecheck
+      - run: pnpm --filter @tansohq/credit-burndown-react test

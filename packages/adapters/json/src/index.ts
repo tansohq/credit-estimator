@@ -3,7 +3,7 @@ import {
   ForecastResultSchema,
   type ForecastInput,
   type ForecastResult,
-} from "@tanso-hq/credit-forecast-schema";
+} from "@tansohq/credit-forecast-schema";
 
 export interface JsonImportIssue {
   readonly code: "INVALID_JSON" | "INVALID_FORECAST_INPUT" | "INVALID_FORECAST_RESULT";
