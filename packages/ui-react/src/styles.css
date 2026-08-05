@@ -660,3 +660,562 @@
     forced-color-adjust: auto;
   }
 }
+
+/* Credit plan estimate — shares the --credit-burndown-* theme tokens. */
+
+:where(.credit-plan-root) {
+  --credit-burndown-background: #ffffff;
+  --credit-burndown-surface: #f3f6f4;
+  --credit-burndown-border: #d8deda;
+  --credit-burndown-text: #17211b;
+  --credit-burndown-muted-text: #5b6961;
+  --credit-burndown-accent: #0f6b57;
+  --credit-burndown-accent-contrast: #ffffff;
+  --credit-burndown-on-track: #0f6b57;
+  --credit-burndown-low-balance: #9a6700;
+  --credit-burndown-depletion: #b4232f;
+  --credit-burndown-warning-background: #fff8e7;
+  --credit-burndown-radius: 0.875rem;
+  --credit-burndown-gap: 1.125rem;
+  --credit-burndown-font-family: inherit;
+  --credit-burndown-data-font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --credit-burndown-font-size: 1rem;
+
+  box-sizing: border-box;
+  container-type: inline-size;
+  display: grid;
+  gap: var(--credit-burndown-gap);
+  min-inline-size: 0;
+  padding: clamp(1rem, 3cqi, 1.5rem);
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: var(--credit-burndown-radius);
+  color: var(--credit-burndown-text);
+  background: var(--credit-burndown-background);
+  box-shadow: 0 0.75rem 2.25rem rgb(23 33 27 / 7%);
+  font-family: var(--credit-burndown-font-family);
+  font-size: var(--credit-burndown-font-size);
+  line-height: 1.45;
+}
+
+:where(.credit-plan-root) *,
+:where(.credit-plan-root) *::before,
+:where(.credit-plan-root) *::after {
+  box-sizing: border-box;
+}
+
+:where(.credit-plan-header) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+:where(.credit-plan-title),
+:where(.credit-plan-heading) {
+  color: inherit;
+  font: inherit;
+  font-weight: 720;
+  margin: 0;
+}
+
+:where(.credit-plan-title) {
+  font-size: 1.125em;
+  letter-spacing: -0.015em;
+}
+
+:where(.credit-plan-heading) {
+  font-size: 0.9375em;
+  margin-block-end: 0.7rem;
+}
+
+:where(.credit-plan-section) {
+  min-inline-size: 0;
+  margin: 0;
+}
+
+:where(.credit-plan-status) {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+  font-weight: 680;
+}
+
+:where(.credit-plan-status-badge) {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: var(--credit-burndown-background);
+  font-size: 0.8125em;
+  white-space: nowrap;
+}
+
+:where(.credit-plan-status--within-allocation) {
+  color: var(--credit-burndown-on-track);
+}
+
+:where(.credit-plan-status--over-allocation) {
+  color: var(--credit-burndown-depletion);
+}
+
+:where(.credit-plan-status--estimate-only) {
+  color: var(--credit-burndown-muted-text);
+}
+
+:where(.credit-plan-status-symbol) {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 850;
+  justify-content: center;
+  min-inline-size: 1em;
+}
+
+:where(.credit-plan-summary) {
+  padding-block: 0.25rem 0.125rem;
+}
+
+:where(.credit-plan-outcome) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.65rem;
+  max-inline-size: 52ch;
+  margin: 0 0 1rem;
+  padding-inline-start: 0.85rem;
+  border-inline-start: 0.2rem solid var(--credit-burndown-on-track);
+}
+
+:where(.credit-plan-outcome-scenario),
+:where(.credit-plan-outcome-label) {
+  color: var(--credit-burndown-muted-text);
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.6875em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+:where(.credit-plan-outcome strong) {
+  grid-column: 1 / -1;
+  font-size: clamp(1.35em, 3.5cqi, 1.8em);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+:where(.credit-plan-root[data-credit-plan-status="OVER_ALLOCATION"] .credit-plan-outcome) {
+  border-inline-start-color: var(--credit-burndown-depletion);
+}
+
+:where(.credit-plan-root[data-credit-plan-status="ESTIMATE_ONLY"] .credit-plan-outcome) {
+  border-inline-start-color: var(--credit-burndown-muted-text);
+}
+
+:where(.credit-plan-meter-block) {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+}
+
+:where(.credit-plan-meter) {
+  position: relative;
+  block-size: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: 999px;
+  background: var(--credit-burndown-surface);
+}
+
+:where(.credit-plan-meter-fill) {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--credit-plan-meter-fill, 0%);
+  border-radius: inherit;
+  background: var(--credit-burndown-accent);
+}
+
+:where(.credit-plan-meter[data-credit-plan-over="true"] .credit-plan-meter-fill) {
+  background: var(--credit-burndown-depletion);
+}
+
+:where(.credit-plan-meter-scale) {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--credit-burndown-muted-text);
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.6875em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+:where(.credit-plan-meter-utilization) {
+  color: var(--credit-burndown-text);
+}
+
+:where(.credit-plan-summary-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: calc(var(--credit-burndown-radius) * 0.72);
+  background: var(--credit-burndown-border);
+}
+
+:where(.credit-plan-stat) {
+  min-inline-size: 0;
+  padding: 0.75rem;
+  background: var(--credit-burndown-surface);
+}
+
+:where(.credit-plan-stat dt),
+:where(.credit-plan-trace-grid dt),
+:where(.credit-plan-source-inputs dt),
+:where(.credit-plan-trace-steps dt) {
+  color: var(--credit-burndown-muted-text);
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.6875em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+:where(.credit-plan-stat dd),
+:where(.credit-plan-trace-grid dd),
+:where(.credit-plan-source-inputs dd),
+:where(.credit-plan-trace-steps dd) {
+  margin: 0.22rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+:where(.credit-plan-stat dd) {
+  font-size: 0.9375em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 690;
+}
+
+:where(.credit-plan-scenarios) {
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+}
+
+:where(.credit-plan-scenarios .credit-plan-heading) {
+  padding: 0;
+}
+
+:where(.credit-plan-scenario-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  overflow: hidden;
+  padding: 2px;
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: calc(var(--credit-burndown-radius) * 0.72);
+  background: var(--credit-burndown-border);
+}
+
+:where(.credit-plan-scenario) {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.3rem;
+  min-inline-size: 0;
+  padding: 0.62rem 0.7rem;
+  background: var(--credit-burndown-background);
+  cursor: pointer;
+}
+
+:where(.credit-plan-scenario[data-credit-plan-selected="true"]) {
+  color: var(--credit-burndown-accent-contrast);
+  background: var(--credit-burndown-accent);
+}
+
+:where(.credit-plan-scenario-input) {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+:where(.credit-plan-scenario-input:focus-visible) +
+  :where(.credit-plan-scenario-label) {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 0.15rem;
+}
+
+:where(.credit-plan-scenario-label) {
+  font-size: 0.875em;
+  font-weight: 730;
+}
+
+:where(.credit-plan-scenario-credits) {
+  overflow: hidden;
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.75em;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.credit-plan-breakdown) {
+  padding: 0.9rem;
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: calc(var(--credit-burndown-radius) * 0.85);
+  background: var(--credit-burndown-surface);
+}
+
+:where(.credit-plan-breakdown-total) {
+  margin: 0.7rem 0 0;
+  font-size: 0.875em;
+}
+
+:where(.credit-plan-breakdown-baseline) {
+  color: var(--credit-burndown-muted-text);
+}
+
+:where(.credit-plan-share) {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-inline-size: 7rem;
+}
+
+:where(.credit-plan-share-bar) {
+  position: relative;
+  flex: 1 1 auto;
+  block-size: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--credit-burndown-accent) 16%, transparent);
+}
+
+:where(.credit-plan-share-fill) {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--credit-plan-share-fill, 0%);
+  border-radius: inherit;
+  background: var(--credit-burndown-accent);
+}
+
+:where(.credit-plan-share-value) {
+  flex: 0 0 auto;
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.8125em;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.credit-plan-warnings) {
+  padding-block-start: 0.1rem;
+}
+
+:where(.credit-plan-warning-list) {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:where(.credit-plan-warning) {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--credit-burndown-depletion) 35%, transparent);
+  border-inline-start: 0.25rem solid var(--credit-burndown-depletion);
+  border-radius: calc(var(--credit-burndown-radius) * 0.45);
+  background: var(--credit-burndown-warning-background);
+  color: var(--credit-burndown-text);
+  font-size: 0.875em;
+}
+
+:where(.credit-plan-no-warnings) {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--credit-burndown-on-track);
+  font-size: 0.875em;
+}
+
+:where(.credit-plan-root[data-credit-plan-status="ESTIMATE_ONLY"] .credit-plan-no-warnings) {
+  color: var(--credit-burndown-muted-text);
+}
+
+:where(.credit-plan-actions) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+:where(.credit-plan-trace) {
+  padding-block-start: 0.85rem;
+  border-block-start: 1px solid var(--credit-burndown-border);
+}
+
+:where(.credit-plan-trace summary) {
+  inline-size: fit-content;
+  color: var(--credit-burndown-accent);
+  cursor: pointer;
+  font-weight: 720;
+}
+
+:where(.credit-plan-trace summary:focus-visible),
+:where(.credit-plan-actions :is(a, button):focus-visible),
+:where(.credit-plan-table-scroll:focus-visible) {
+  outline: 3px solid var(--credit-burndown-accent);
+  outline-offset: 3px;
+}
+
+:where(.credit-plan-trace-content) {
+  display: grid;
+  gap: 1rem;
+  padding-block-start: 1rem;
+}
+
+:where(.credit-plan-trace-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--credit-burndown-border);
+  border-radius: calc(var(--credit-burndown-radius) * 0.6);
+  background: var(--credit-burndown-surface);
+}
+
+:where(.credit-plan-trace-grid > div),
+:where(.credit-plan-source-inputs > div) {
+  min-inline-size: 0;
+}
+
+:where(.credit-plan-table-scroll) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+:where(.credit-plan-table) {
+  inline-size: 100%;
+  border-collapse: collapse;
+  background: var(--credit-burndown-background);
+  font-variant-numeric: tabular-nums;
+  text-align: start;
+}
+
+:where(.credit-plan-table caption) {
+  padding-block-end: 0.45rem;
+  color: var(--credit-burndown-muted-text);
+  font-weight: 680;
+  text-align: start;
+}
+
+:where(.credit-plan-table th),
+:where(.credit-plan-table td) {
+  min-inline-size: 8rem;
+  padding: 0.52rem;
+  border-block-end: 1px solid var(--credit-burndown-border);
+  text-align: start;
+  white-space: nowrap;
+}
+
+:where(.credit-plan-table thead th) {
+  background: var(--credit-burndown-surface);
+  font-family: var(--credit-burndown-data-font-family);
+  font-size: 0.75em;
+}
+
+:where(.credit-plan-breakdown-table),
+:where(.credit-plan-breakdown-table thead th) {
+  background: var(--credit-burndown-surface);
+}
+
+:where(.credit-plan-source-inputs),
+:where(.credit-plan-trace-steps) {
+  display: grid;
+  gap: 0.75rem;
+}
+
+:where(.credit-plan-source-inputs) {
+  margin: 0;
+}
+
+:where(.credit-plan-trace-steps) {
+  padding-inline-start: 1.5rem;
+}
+
+:where(.credit-plan-trace-step-heading) {
+  margin-block: 0 0.4rem;
+}
+
+:where(.credit-plan-trace-steps dl) {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+:where(.credit-plan-trace code) {
+  font-family: var(--credit-burndown-data-font-family);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+:where(.credit-plan-version-error) {
+  padding: 1rem;
+  border: 1px solid var(--credit-burndown-depletion);
+  border-radius: var(--credit-burndown-radius);
+  color: var(--credit-burndown-depletion);
+}
+
+:where(.credit-plan-sr-only) {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@container (max-width: 38rem) {
+  :where(.credit-plan-root) {
+    --credit-burndown-gap: 0.9rem;
+  }
+
+  :where(.credit-plan-summary-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 26rem) {
+  :where(.credit-plan-header) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :where(.credit-plan-scenario-grid),
+  :where(.credit-plan-summary-grid) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.credit-plan-root),
+  :where(.credit-plan-scenario[data-credit-plan-selected="true"]),
+  :where(.credit-plan-meter-fill),
+  :where(.credit-plan-share-fill),
+  :where(.credit-plan-warning) {
+    forced-color-adjust: auto;
+  }
+}

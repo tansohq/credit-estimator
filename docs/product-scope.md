@@ -218,8 +218,11 @@ The plan contract lives beside the forecast contract:
    calculation traces.
 3. Golden plan fixtures under `fixtures/golden-plans/` are executable
    acceptance criteria, mirroring the forecast fixtures.
-4. JSON exchange ships with the same adapter guarantees. A dedicated plan
-   React component and CSV exchange are later increments.
+4. JSON exchange ships with the same adapter guarantees, and the
+   controlled `CreditPlan` React components render the result with
+   buyer-facing defaults (Conservative/Expected/Aggressive scenarios, an
+   allocation meter, and a per-metric breakdown). CSV exchange for plans
+   is a later increment.
 
 See [planning-methodology.md](planning-methodology.md) for formulas.
 
@@ -229,7 +232,7 @@ See [planning-methodology.md](planning-methodology.md) for formulas.
 - Optional hosted API wrapper as a deferred, non-MVP deployment choice
 - Additional framework wrappers when committed adopters require them
 - Package registry publication and public contribution policy
-- A plan React component and CSV exchange for the planning calculator
+- CSV exchange for the planning calculator
 - Optional money cost totals (planned credits times host-supplied unit
   price) only as an explicit, versioned scope amendment
 - Cohort or similar-customer priors only as explicit host-supplied inputs,
@@ -292,7 +295,7 @@ not use `modelVersion`.
 | Embeddable React UI | Neutral accessible presentation | Embeds, themes, and supplies data | Primary MVP |
 | JSON/CSV adapters | Neutral serialization mapping | Imports or exports product data | Implemented |
 | Plan calculator | Plan schemas, deterministic plan calculation, warnings, traces | Supplies estimates, credit weights, and candidate allocation | Implemented |
-| Plan React component | Neutral accessible presentation | Embeds, themes, and supplies data | Deferred |
+| Plan React component | Neutral accessible presentation | Embeds, themes, and supplies data | Implemented |
 | Local reference demo | Demonstrates browser-local integration | Runs or deploys it if useful | Implemented locally |
 | Tanso OSS adapter | Validates and maps an already-fetched, already-consistent Tanso forecast snapshot plus explicit assumptions | Owns source data, credentials, aggregation, consistency, and APIs | Implemented |
 | Automatic Tanso source connector | — | Fetches and assembles trustworthy source inputs | Deferred; not implemented |

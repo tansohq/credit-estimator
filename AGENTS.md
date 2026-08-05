@@ -229,9 +229,9 @@ Dependency rules:
    explicit. The pure Tanso snapshot mapper now satisfies this boundary; an
    automatic Tanso source connector remains deferred.
 7. Add the deterministic planning calculator: neutral plan schemas, the
-   pure plan calculation, golden plan fixtures, and JSON exchange. A
-   dedicated plan React component is a later increment; the JSON contract
-   is the current integration surface.
+   pure plan calculation, golden plan fixtures, JSON exchange, and the
+   controlled `CreditPlan` React components. CSV exchange for plans is a
+   later increment.
 
 Do not duplicate forecast formulas in the UI. The UI presents core results.
 

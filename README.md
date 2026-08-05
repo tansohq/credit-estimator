@@ -135,6 +135,32 @@ ordered calculation traces as forecasts. Invalid input throws a structured
 [the planning methodology](docs/planning-methodology.md) and
 [golden plans](fixtures/golden-plans/README.md).
 
+The React package renders the plan with buyer-facing defaults — scenarios
+labeled Conservative, Expected, and Aggressive, an allocation meter, a
+per-metric "where credits go" breakdown, and the full calculation trace:
+
+```tsx
+import { planCreditUsage } from "@tansohq/credit-forecast-core";
+import { CreditPlan } from "@tansohq/credit-burndown-react";
+import "@tansohq/credit-burndown-react/styles.css";
+
+const result = planCreditUsage(input);
+
+<CreditPlan.Root input={input} result={result}>
+  <CreditPlan.Summary />
+  <CreditPlan.Scenarios />
+  <CreditPlan.Breakdown />
+  <CreditPlan.Warnings />
+  <CreditPlan.Trace />
+</CreditPlan.Root>;
+```
+
+`CreditPlan` follows the same controlled, composable contract as
+`CreditBurndown` (or use `CreditPlanView` for the composed layout), shares
+its `--credit-burndown-*` theme variables, and owns no fetch,
+authentication, persistence, or billing behavior. Every default label can
+be overridden through the `messages` prop.
+
 ## Run the reference app
 
 ```bash
