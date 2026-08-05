@@ -4,8 +4,12 @@ import {
   JsonImportError,
   parseForecastInput,
   parseForecastResult,
+  parsePlanInput,
+  parsePlanResult,
   serializeForecastInput,
   serializeForecastResult,
+  serializePlanInput,
+  serializePlanResult,
 } from "./index.js";
 
 const input = {
@@ -105,6 +109,130 @@ describe("JSON adapter", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(JsonImportError);
       expect((error as JsonImportError).issues[0]?.code).toBe("INVALID_FORECAST_RESULT");
+    }
+  });
+});
+
+const planInput = {
+  schemaVersion: "1.0",
+  methodologyVersion: "1.0",
+  period: { startDate: "2026-01-01", endDate: "2026-01-03" },
+  metricEstimates: [
+    { key: "m1", label: "Metric one", estimatedUnits: "4", creditsPerUnit: "0.5" },
+  ],
+  allocation: "3",
+  scenarios: [
+    { key: "low", burnMultiplier: "0.5" },
+    { key: "base", burnMultiplier: "1" },
+    { key: "high", burnMultiplier: "2" },
+  ],
+  extensions: { "com.example": { note: "planning" } },
+} as const;
+
+const planResult = {
+  schemaVersion: "1.0",
+  methodologyVersion: "1.0",
+  daysInPeriod: 2,
+  baselinePlannedCredits: "2",
+  baselineAverageDailyBurn: "1",
+  metrics: [
+    { key: "m1", label: "Metric one", estimatedUnits: "4", creditsPerUnit: "0.5", plannedCredits: "2" },
+  ],
+  scenarios: [
+    {
+      key: "low",
+      burnMultiplier: "0.5",
+      plannedCredits: "1",
+      averageDailyBurn: "0.5",
+      metricBreakdown: [{ key: "m1", plannedCredits: "1" }],
+      comparison: {
+        allocation: "3",
+        utilization: "0.333333333333",
+        surplus: "2",
+        shortfall: "0",
+        status: "WITHIN_ALLOCATION" as const,
+      },
+    },
+    {
+      key: "base",
+      burnMultiplier: "1",
+      plannedCredits: "2",
+      averageDailyBurn: "1",
+      metricBreakdown: [{ key: "m1", plannedCredits: "2" }],
+      comparison: {
+        allocation: "3",
+        utilization: "0.666666666667",
+        surplus: "1",
+        shortfall: "0",
+        status: "WITHIN_ALLOCATION" as const,
+      },
+    },
+    {
+      key: "high",
+      burnMultiplier: "2",
+      plannedCredits: "4",
+      averageDailyBurn: "2",
+      metricBreakdown: [{ key: "m1", plannedCredits: "4" }],
+      comparison: {
+        allocation: "3",
+        utilization: "1.333333333333",
+        surplus: "0",
+        shortfall: "1",
+        status: "OVER_ALLOCATION" as const,
+      },
+    },
+  ],
+  warnings: [
+    {
+      code: "OVER_ALLOCATION" as const,
+      scenarioKey: "high" as const,
+      plannedCredits: "4",
+      allocation: "3",
+      shortfall: "1",
+    },
+  ],
+  calculationTrace: {
+    sourceInputs: [{ path: "input.schemaVersion", value: "1.0" }],
+    steps: [{
+      key: "baselinePlannedCredits",
+      formula: "sum(metrics[*].plannedCredits)",
+      operands: { metricPlannedCredits: ["2"] },
+      result: "2",
+    }],
+  },
+} as const;
+
+describe("JSON plan adapter", () => {
+  it("round-trips a validated plan input deterministically", () => {
+    const first = serializePlanInput(planInput);
+    const second = serializePlanInput(parsePlanInput(first));
+
+    expect(second).toBe(first);
+    expect(parsePlanInput(first)).toEqual(planInput);
+  });
+
+  it("round-trips a complete plan result", () => {
+    const serialized = serializePlanResult(planResult);
+
+    expect(parsePlanResult(serialized)).toEqual(planResult);
+    expect(serializePlanResult(parsePlanResult(serialized))).toBe(serialized);
+  });
+
+  it("returns structured plan schema issues", () => {
+    try {
+      parsePlanInput('{"schemaVersion":"1.0"}');
+      throw new Error("Expected parsePlanInput to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JsonImportError);
+      expect((error as JsonImportError).issues[0]?.code).toBe("INVALID_PLAN_INPUT");
+    }
+
+    try {
+      parsePlanResult('{"schemaVersion":"1.0"}');
+      throw new Error("Expected parsePlanResult to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JsonImportError);
+      expect((error as JsonImportError).issues[0]?.code).toBe("INVALID_PLAN_RESULT");
     }
   });
 });

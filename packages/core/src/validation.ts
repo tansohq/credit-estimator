@@ -1,7 +1,9 @@
 import {
   ForecastInputSchema,
+  PlanInputSchema,
   type ForecastInput,
   type ForecastValidationFailure,
+  type PlanInput,
   type ValidationIssue,
 } from "@tansohq/credit-forecast-schema";
 
@@ -50,7 +52,9 @@ const schemaIssueCode = (issue: RawSchemaIssue): string => {
     path.endsWith(".creditsUsed") ||
     path.endsWith(".current") ||
     path.endsWith(".creditDelta") ||
-    path.endsWith(".burnMultiplier")
+    path.endsWith(".burnMultiplier") ||
+    path.endsWith(".estimatedUnits") ||
+    path.endsWith(".creditsPerUnit")
   ) {
     return "INVALID_DECIMAL";
   }
@@ -101,6 +105,44 @@ export const parseAndValidateForecastInput = (input: unknown): ForecastInput => 
   }
 
   throw new ForecastValidationError({
+    schemaVersion: portableVersion(input, "schemaVersion"),
+    methodologyVersion: portableVersion(input, "methodologyVersion"),
+    code: "INVALID_INPUT",
+    issues: parsed.error.issues.map((issue) => toValidationIssue(issue as RawSchemaIssue)),
+  });
+};
+
+export class PlanValidationError extends Error {
+  readonly schemaVersion: string | null;
+  readonly methodologyVersion: string | null;
+  readonly code = "INVALID_INPUT" as const;
+  readonly issues: readonly ValidationIssue[];
+
+  constructor(failure: ForecastValidationFailure) {
+    super("Plan input validation failed");
+    this.name = "PlanValidationError";
+    this.schemaVersion = failure.schemaVersion;
+    this.methodologyVersion = failure.methodologyVersion;
+    this.issues = failure.issues;
+  }
+
+  toJSON(): ForecastValidationFailure {
+    return {
+      schemaVersion: this.schemaVersion,
+      methodologyVersion: this.methodologyVersion,
+      code: this.code,
+      issues: this.issues,
+    };
+  }
+}
+
+export const parseAndValidatePlanInput = (input: unknown): PlanInput => {
+  const parsed = PlanInputSchema.safeParse(input);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  throw new PlanValidationError({
     schemaVersion: portableVersion(input, "schemaVersion"),
     methodologyVersion: portableVersion(input, "methodologyVersion"),
     code: "INVALID_INPUT",

@@ -1,0 +1,33 @@
+{
+  "name": "negative estimated units are rejected",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-04-01",
+      "endDate": "2026-05-01"
+    },
+    "metricEstimates": [
+      { "key": "api-calls", "estimatedUnits": "-5", "creditsPerUnit": "1" }
+    ],
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expectedError": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "code": "INVALID_INPUT",
+    "issues": [
+      {
+        "code": "NEGATIVE_ESTIMATED_UNITS",
+        "path": "input.metricEstimates[0].estimatedUnits",
+        "message": "estimatedUnits must be non-negative"
+      }
+    ]
+  }
+}

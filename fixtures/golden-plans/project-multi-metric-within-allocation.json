@@ -1,0 +1,88 @@
+{
+  "name": "multi-metric project plan stays within its candidate allocation",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-04-01",
+      "endDate": "2026-04-11"
+    },
+    "metricEstimates": [
+      { "key": "agent-runs", "label": "Agent runs", "estimatedUnits": "200", "creditsPerUnit": "2" },
+      { "key": "tokens-1k", "label": "Tokens (thousands)", "estimatedUnits": "500", "creditsPerUnit": "0.2" }
+    ],
+    "allocation": "800",
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysInPeriod": 10,
+    "baselinePlannedCredits": "500",
+    "baselineAverageDailyBurn": "50",
+    "metrics": [
+      { "key": "agent-runs", "label": "Agent runs", "estimatedUnits": "200", "creditsPerUnit": "2", "plannedCredits": "400" },
+      { "key": "tokens-1k", "label": "Tokens (thousands)", "estimatedUnits": "500", "creditsPerUnit": "0.2", "plannedCredits": "100" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.5",
+        "plannedCredits": "250",
+        "averageDailyBurn": "25",
+        "metricBreakdown": [
+          { "key": "agent-runs", "plannedCredits": "200" },
+          { "key": "tokens-1k", "plannedCredits": "50" }
+        ],
+        "comparison": {
+          "allocation": "800",
+          "utilization": "0.3125",
+          "surplus": "550",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1",
+        "plannedCredits": "500",
+        "averageDailyBurn": "50",
+        "metricBreakdown": [
+          { "key": "agent-runs", "plannedCredits": "400" },
+          { "key": "tokens-1k", "plannedCredits": "100" }
+        ],
+        "comparison": {
+          "allocation": "800",
+          "utilization": "0.625",
+          "surplus": "300",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "1.5",
+        "plannedCredits": "750",
+        "averageDailyBurn": "75",
+        "metricBreakdown": [
+          { "key": "agent-runs", "plannedCredits": "600" },
+          { "key": "tokens-1k", "plannedCredits": "150" }
+        ],
+        "comparison": {
+          "allocation": "800",
+          "utilization": "0.9375",
+          "surplus": "50",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      }
+    ],
+    "warnings": []
+  }
+}

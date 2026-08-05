@@ -1,12 +1,21 @@
 import {
   ForecastInputSchema,
   ForecastResultSchema,
+  PlanInputSchema,
+  PlanResultSchema,
   type ForecastInput,
   type ForecastResult,
+  type PlanInput,
+  type PlanResult,
 } from "@tansohq/credit-forecast-schema";
 
 export interface JsonImportIssue {
-  readonly code: "INVALID_JSON" | "INVALID_FORECAST_INPUT" | "INVALID_FORECAST_RESULT";
+  readonly code:
+    | "INVALID_JSON"
+    | "INVALID_FORECAST_INPUT"
+    | "INVALID_FORECAST_RESULT"
+    | "INVALID_PLAN_INPUT"
+    | "INVALID_PLAN_RESULT";
   readonly path: string;
   readonly message: string;
 }
@@ -63,7 +72,11 @@ function schemaIssues(
       readonly message: string;
     }[];
   },
-  code: "INVALID_FORECAST_INPUT" | "INVALID_FORECAST_RESULT",
+  code:
+    | "INVALID_FORECAST_INPUT"
+    | "INVALID_FORECAST_RESULT"
+    | "INVALID_PLAN_INPUT"
+    | "INVALID_PLAN_RESULT",
 ): readonly JsonImportIssue[] {
   return error.issues.map((issue) => ({
     code,
@@ -97,6 +110,36 @@ export function parseForecastResult(source: string): ForecastResult {
     throw new JsonImportError(
       "JSON does not contain a valid ForecastResult",
       schemaIssues(parsed.error, "INVALID_FORECAST_RESULT"),
+    );
+  }
+  return parsed.data;
+}
+
+export function serializePlanInput(input: PlanInput): string {
+  return serialize(PlanInputSchema.parse(input));
+}
+
+export function parsePlanInput(source: string): PlanInput {
+  const parsed = PlanInputSchema.safeParse(parseJson(source));
+  if (!parsed.success) {
+    throw new JsonImportError(
+      "JSON does not contain a valid PlanInput",
+      schemaIssues(parsed.error, "INVALID_PLAN_INPUT"),
+    );
+  }
+  return parsed.data;
+}
+
+export function serializePlanResult(result: PlanResult): string {
+  return serialize(PlanResultSchema.parse(result));
+}
+
+export function parsePlanResult(source: string): PlanResult {
+  const parsed = PlanResultSchema.safeParse(parseJson(source));
+  if (!parsed.success) {
+    throw new JsonImportError(
+      "JSON does not contain a valid PlanResult",
+      schemaIssues(parsed.error, "INVALID_PLAN_RESULT"),
     );
   }
   return parsed.data;

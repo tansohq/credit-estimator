@@ -8,6 +8,12 @@ explicit low/base/high burn assumptions. The deterministic core projects
 ending balance, utilization, depletion risk, and shortfall. The optional React
 package renders the result inside the host's dashboard.
 
+The core also includes a deterministic planning calculator for prospective
+buyers: explicit per-metric usage estimates times host-supplied credit
+weights, scaled across low/base/high scenarios and compared against an
+optional candidate allocation. See
+[Plan credits before committing](#plan-credits-before-committing).
+
 The estimator is read-only. It does not own wallets, ledgers, usage events,
 entitlements, subscriptions, payments, or customer actions.
 
@@ -90,6 +96,44 @@ does not read the clock, filesystem, network, credentials, or product state.
 
 Invalid input throws a structured `ForecastValidationError` with a portable
 failure envelope.
+
+## Plan credits before committing
+
+The same core package answers the buyer-side question — "how many credits
+does this period need?" — without any usage history:
+
+```ts
+import { planCreditUsage } from "@tansohq/credit-forecast-core";
+
+const plan = planCreditUsage({
+  schemaVersion: "1.0",
+  methodologyVersion: "1.0",
+  period: { startDate: "2026-02-01", endDate: "2026-03-01" },
+  metricEstimates: [
+    { key: "api-calls", label: "API calls", estimatedUnits: "1000", creditsPerUnit: "0.5" },
+    { key: "reports", label: "Generated reports", estimatedUnits: "20", creditsPerUnit: "5" },
+  ],
+  allocation: "700",
+  scenarios: [
+    { key: "low", burnMultiplier: "0.8" },
+    { key: "base", burnMultiplier: "1" },
+    { key: "high", burnMultiplier: "1.25" },
+  ],
+});
+```
+
+Every metric's planned credits is `estimatedUnits * creditsPerUnit`, each
+scenario scales the per-metric amounts by its multiplier, and the optional
+`allocation` yields utilization, surplus, shortfall, and a
+`WITHIN_ALLOCATION`/`OVER_ALLOCATION` status per scenario, plus structured
+`OVER_ALLOCATION` warnings. Credit weights, estimates, multipliers, and the
+candidate allocation are always explicit host inputs — the calculator never
+recommends weights or allocations, never produces money amounts, and never
+predicts usage from history or similar customers. Results carry the same
+ordered calculation traces as forecasts. Invalid input throws a structured
+`PlanValidationError`. See
+[the planning methodology](docs/planning-methodology.md) and
+[golden plans](fixtures/golden-plans/README.md).
 
 ## Run the reference app
 
@@ -196,7 +240,9 @@ outside the adapter, core, and React packages. See the
 ```ts
 import {
   parseForecastInput,
+  parsePlanInput,
   serializeForecastResult,
+  serializePlanResult,
 } from "@tansohq/credit-forecast-json";
 import {
   exportForecastInputCsv,
@@ -204,10 +250,11 @@ import {
 } from "@tansohq/credit-forecast-csv";
 ```
 
-The JSON adapter emits stable, key-sorted JSON. The CSV adapter uses an
-RFC 4180 bundle so nested input, projected points, warnings, and traces remain
-lossless. Both adapters validate imported and exported data against the neutral
-schemas.
+The JSON adapter emits stable, key-sorted JSON for forecast and plan inputs
+and results. The CSV adapter uses an RFC 4180 bundle so nested forecast
+input, projected points, warnings, and traces remain lossless; CSV exchange
+for plans is deferred. Both adapters validate imported and exported data
+against the neutral schemas.
 
 ## Methodology
 
@@ -221,7 +268,10 @@ named calculation.
 Every successful result includes the input versions, observed and projected
 series, depletion status, structured warnings, and ordered calculation traces.
 See [the full methodology](docs/methodology.md) and
-[golden scenarios](fixtures/golden-scenarios/README.md).
+[golden scenarios](fixtures/golden-scenarios/README.md). The planning
+calculation is specified separately in
+[the planning methodology](docs/planning-methodology.md) with its own
+[golden plans](fixtures/golden-plans/README.md).
 
 ## Verify
 

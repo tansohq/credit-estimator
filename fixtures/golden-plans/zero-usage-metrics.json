@@ -1,0 +1,88 @@
+{
+  "name": "zero estimated units and zero credit weights plan zero credits",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-08"
+    },
+    "metricEstimates": [
+      { "key": "idle-metric", "estimatedUnits": "0", "creditsPerUnit": "3" },
+      { "key": "free-metric", "estimatedUnits": "10", "creditsPerUnit": "0" }
+    ],
+    "allocation": "100",
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "2" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysInPeriod": 7,
+    "baselinePlannedCredits": "0",
+    "baselineAverageDailyBurn": "0",
+    "metrics": [
+      { "key": "idle-metric", "estimatedUnits": "0", "creditsPerUnit": "3", "plannedCredits": "0" },
+      { "key": "free-metric", "estimatedUnits": "10", "creditsPerUnit": "0", "plannedCredits": "0" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.5",
+        "plannedCredits": "0",
+        "averageDailyBurn": "0",
+        "metricBreakdown": [
+          { "key": "idle-metric", "plannedCredits": "0" },
+          { "key": "free-metric", "plannedCredits": "0" }
+        ],
+        "comparison": {
+          "allocation": "100",
+          "utilization": "0",
+          "surplus": "100",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1",
+        "plannedCredits": "0",
+        "averageDailyBurn": "0",
+        "metricBreakdown": [
+          { "key": "idle-metric", "plannedCredits": "0" },
+          { "key": "free-metric", "plannedCredits": "0" }
+        ],
+        "comparison": {
+          "allocation": "100",
+          "utilization": "0",
+          "surplus": "100",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "2",
+        "plannedCredits": "0",
+        "averageDailyBurn": "0",
+        "metricBreakdown": [
+          { "key": "idle-metric", "plannedCredits": "0" },
+          { "key": "free-metric", "plannedCredits": "0" }
+        ],
+        "comparison": {
+          "allocation": "100",
+          "utilization": "0",
+          "surplus": "100",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      }
+    ],
+    "warnings": []
+  }
+}

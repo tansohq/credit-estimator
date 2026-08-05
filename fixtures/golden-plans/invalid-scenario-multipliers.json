@@ -1,0 +1,33 @@
+{
+  "name": "unordered scenario multipliers are rejected",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-04-01",
+      "endDate": "2026-05-01"
+    },
+    "metricEstimates": [
+      { "key": "api-calls", "estimatedUnits": "100", "creditsPerUnit": "1" }
+    ],
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "1.2" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.1" }
+    ]
+  },
+  "expectedError": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "code": "INVALID_INPUT",
+    "issues": [
+      {
+        "code": "INVALID_SCENARIO_MULTIPLIERS",
+        "path": "input.scenarios",
+        "message": "scenario burnMultipliers must satisfy low < base < high"
+      }
+    ]
+  }
+}
