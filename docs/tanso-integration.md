@@ -6,6 +6,15 @@ Tanso is one optional source of credit and usage data. It is not required by
 the forecast schemas, deterministic core, JSON contracts, or embeddable React
 UI.
 
+The open-source Tanso engine lives at
+[tansohq/tanso-oss](https://github.com/tansohq/tanso-oss): a monetization
+engine for B2B AI products with prepaid credit pools per customer, an
+append-only credit transaction ledger, a server-side credit-weight tariff
+(usage units to credits per feature and model, with scheduled effective
+times), pre-flight credit quotes on entitlement checks, and Stripe-backed
+billing. This document describes how that product and this workspace meet
+without either depending on the other.
+
 The boundary is:
 
     Tanso: authoritative balances, grants, deductions, usage, and billing state
@@ -171,13 +180,45 @@ The mapping boundary is intentionally narrower than a live Tanso connector:
   the start of the requested `asOf` date;
 - allocation periods and amounts can be ambiguous, especially for historical
   forecasts; and
-- the current public SDK does not expose a trustworthy, complete daily
-  credit-use snapshot for the required observed interval.
+- tanso-oss exposes a credit transaction ledger with running balances, but no
+  endpoint returns complete, daily-bucketed credit usage for an arbitrary
+  observed interval. Bucketing transactions into the required daily history
+  is host-owned aggregation, and it must work from authoritative usage
+  records — never from parsing transaction descriptions, labels, or
+  deduction amounts.
 
 The repository therefore does not claim a source endpoint exists. A host must
-assemble and verify these inputs from its own authoritative context. Parsing
-generic transactions, descriptions, labels, or deduction amounts is not a
-supported substitute.
+assemble and verify these inputs from its own authoritative context.
+
+## Planning inputs from Tanso
+
+The planning calculator (`docs/planning-methodology.md`) needs no
+Tanso-specific adapter, because its inputs map directly onto data a Tanso
+host already owns:
+
+- **`metricEstimates[*].key` and `estimatedUnits`** come from the buyer:
+  expected usage units per feature (or feature-and-model pair) for the plan
+  period. In tanso-oss vocabulary these are the same feature keys and raw
+  usage units sent to `POST /api/v1/client/events`.
+- **`metricEstimates[*].creditsPerUnit`** comes from the published
+  credit-weight tariff. tanso-oss resolves weights most-specific first —
+  `(feature, model)`, then `(feature, any model)`, then `1.0` — and the same
+  resolved weight appears as `creditQuote.weight` on an entitlement check.
+  The host resolves each planned metric to one weight and passes it as an
+  explicit decimal string.
+- **`allocation`** is the candidate credit grant for the period — the pool
+  size a buyer is considering committing to.
+
+The same freshness caveat that tanso-oss applies to quotes applies here: a
+tariff is append-only with scheduled future effective times, so a plan is
+priced by the tariff snapshot the host supplied, not by whatever tariff is
+effective when usage later occurs. A host planning across a scheduled tariff
+cutover should either use the weights effective for the plan period or
+recalculate when the cutover lands. As with forecasts, the neutral packages
+never call Tanso: the host reads its tariff and assembles `PlanInput`
+itself. If a recurring need for a pure snapshot-to-`PlanInput` mapper
+emerges, it belongs in `packages/adapters/tanso` under the same boundary
+rules as the forecast mapper.
 
 ## Data flow
 
@@ -238,8 +279,22 @@ Tanso embeds the same result-controlled React components as any other adopter:
 </CreditBurndown.Root>
 ```
 
+A Tanso host embeds the plan components the same way, supplying a
+`PlanInput` assembled from buyer estimates and its credit-weight tariff:
+
+```tsx
+<CreditPlan.Root input={planInput} result={planResult}>
+  <CreditPlan.Summary />
+  <CreditPlan.Scenarios />
+  <CreditPlan.Breakdown />
+  <CreditPlan.Warnings />
+  <CreditPlan.Trace />
+</CreditPlan.Root>
+```
+
 The generic UI has no Tanso behavior. Tanso may supply a product-specific
-link or control through the host action slot, but the package provides no
+link or control through the host action slot — for example a checkout or
+top-up link from its own billing endpoints — but the package provides no
 built-in top-up, wallet, billing, or plan-change action. Tanso controls own
 their authentication, side effects, confirmation, and error handling outside
 the neutral component package.

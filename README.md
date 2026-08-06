@@ -200,6 +200,21 @@ React peers are `^18.2 || ^19`.
 
 ## Optional Tanso integration
 
+The open-source Tanso engine — credit pools, an append-only credit ledger, a
+credit-weight tariff, and Stripe-backed billing — lives at
+[tansohq/tanso-oss](https://github.com/tansohq/tanso-oss). Two touch points
+exist, and neither makes Tanso a dependency:
+
+1. **Forecasting**: `@tansohq/credit-forecast-tanso` maps a host-fetched
+   snapshot into neutral `ForecastInput` (below).
+2. **Planning**: no adapter is needed. A Tanso host assembles `PlanInput`
+   directly — buyer-estimated usage units per feature, `creditsPerUnit` from
+   its published credit-weight tariff (the same resolved weight an
+   entitlement check returns as `creditQuote.weight`), and the candidate
+   credit grant as `allocation`. See
+   [the Tanso boundary](docs/tanso-integration.md) for the mapping and its
+   tariff-freshness caveat.
+
 `@tansohq/credit-forecast-tanso` maps two host-supplied objects into the same
 validated `ForecastInput` used by every other host. Within this workspace:
 
