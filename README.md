@@ -1,7 +1,52 @@
 # Credit Burndown Forecaster
 
-An embeddable, provider-neutral component that forecasts credit or usage
-runway from observed host data.
+**Embeddable, provider-neutral credit-runway forecasting** — projects when a
+customer's credits run out, from usage data your app already has, and renders
+it inside your dashboard.
+
+[![CI](https://github.com/tansohq/credit-estimator/actions/workflows/ci.yml/badge.svg)](https://github.com/tansohq/credit-estimator/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@tansohq/credit-forecast-core)](https://www.npmjs.com/package/@tansohq/credit-forecast-core)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+## Quick start
+
+```bash
+npm install @tansohq/credit-forecast-core @tansohq/credit-burndown-react
+```
+
+```ts
+import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
+
+const result = forecastCreditUsage({
+  schemaVersion: "1.0",
+  methodologyVersion: "1.0",
+  asOf: "2026-01-03",
+  period: {
+    startDate: "2026-01-01",
+    endDate: "2026-01-06",
+    allocation: "500",
+    lowBalanceThreshold: "50",
+  },
+  lookbackDays: 2,
+  dailyUsage: [
+    { date: "2026-01-01", creditsUsed: "40" },
+    { date: "2026-01-02", creditsUsed: "60" },
+  ],
+  balance: { current: "400", schedule: [] },
+  scenarios: [
+    { key: "low", burnMultiplier: "0.75" },
+    { key: "base", burnMultiplier: "1" },
+    { key: "high", burnMultiplier: "1.5" },
+  ],
+});
+```
+
+All credit values are canonical decimal strings. `asOf` is explicit. The core
+does not read the clock, filesystem, network, credentials, or product state.
+Invalid input throws a structured `ForecastValidationError` with a portable
+failure envelope.
+
+## What it is
 
 A host supplies current balance, period allocation, complete daily usage, and
 explicit low/base/high burn assumptions. The deterministic core projects
@@ -43,13 +88,9 @@ MVP.
 | `@tansohq/credit-forecast-csv` | Portable multi-file CSV import and export |
 | `@tansohq/credit-forecast-tanso` | Pure optional Tanso snapshot-to-neutral mapping |
 
-All six packages are published to npm under the `@tansohq` scope. Install only what you need, for example:
-
-```bash
-npm install @tansohq/credit-forecast-core @tansohq/credit-burndown-react
-```
-
-Packages are ESM-only. CommonJS hosts must use dynamic `import()`.
+All six packages are published to npm under the `@tansohq` scope. Install only
+what you need. Packages are ESM-only. CommonJS hosts must use dynamic
+`import()`.
 
 ## Install the workspace
 
@@ -61,41 +102,6 @@ cd credit-estimator
 corepack enable
 pnpm install
 ```
-
-## Run the standalone library
-
-```ts
-import { forecastCreditUsage } from "@tansohq/credit-forecast-core";
-
-const result = forecastCreditUsage({
-  schemaVersion: "1.0",
-  methodologyVersion: "1.0",
-  asOf: "2026-01-03",
-  period: {
-    startDate: "2026-01-01",
-    endDate: "2026-01-06",
-    allocation: "500",
-    lowBalanceThreshold: "50",
-  },
-  lookbackDays: 2,
-  dailyUsage: [
-    { date: "2026-01-01", creditsUsed: "40" },
-    { date: "2026-01-02", creditsUsed: "60" },
-  ],
-  balance: { current: "400", schedule: [] },
-  scenarios: [
-    { key: "low", burnMultiplier: "0.75" },
-    { key: "base", burnMultiplier: "1" },
-    { key: "high", burnMultiplier: "1.5" },
-  ],
-});
-```
-
-All credit values are canonical decimal strings. `asOf` is explicit. The core
-does not read the clock, filesystem, network, credentials, or product state.
-
-Invalid input throws a structured `ForecastValidationError` with a portable
-failure envelope.
 
 ## Plan credits before committing
 
