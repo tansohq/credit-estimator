@@ -7,11 +7,16 @@ import type {
   ForecastValidationFailure,
   ForecastWarning,
   JsonValue,
+  PlanInput,
+  PlanResult,
+  PlanWarning,
   ValidationIssue,
 } from "./types.js";
 import {
   validateForecastInputSemantics,
   validateForecastResultSemantics,
+  validatePlanInputSemantics,
+  validatePlanResultSemantics,
 } from "./validation.js";
 
 const CANONICAL_DECIMAL = /^-?(?:0|[1-9]\d*)(?:\.\d{0,11}[1-9])?$/;
@@ -264,6 +269,123 @@ export const ForecastValidationFailureSchema: z.ZodType<ForecastValidationFailur
   })
   .strict();
 
+const PlanMetricEstimateSchema = z
+  .object({
+    key: z.string().min(1),
+    label: z.string().min(1).optional(),
+    estimatedUnits: DecimalStringSchema,
+    creditsPerUnit: DecimalStringSchema,
+  })
+  .strict();
+
+const PlanInputStructureSchema: z.ZodType<PlanInput> = z
+  .object({
+    schemaVersion: z.string().min(1),
+    methodologyVersion: z.string().min(1),
+    period: z
+      .object({
+        startDate: ISODateSchema,
+        endDate: ISODateSchema,
+      })
+      .strict(),
+    metricEstimates: z.array(PlanMetricEstimateSchema),
+    allocation: DecimalStringSchema.optional(),
+    scenarios: z.array(ForecastScenarioSchema),
+    extensions: NamespacedExtensionsSchema.optional(),
+  })
+  .strict();
+
+export const PlanInputSchema: z.ZodType<PlanInput> = PlanInputStructureSchema.superRefine(
+  (input, context) => {
+    validatePlanInputSemantics(input).forEach((issue) => {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: pathFromInputPath(issue.path),
+        message: issue.message,
+        params: { forecastCode: issue.code },
+      });
+    });
+  },
+);
+
+const PlanMetricCreditsSchema = z
+  .object({
+    key: z.string().min(1),
+    label: z.string().min(1).optional(),
+    estimatedUnits: DecimalStringSchema,
+    creditsPerUnit: DecimalStringSchema,
+    plannedCredits: DecimalStringSchema,
+  })
+  .strict();
+
+const PlanScenarioMetricCreditsSchema = z
+  .object({
+    key: z.string().min(1),
+    plannedCredits: DecimalStringSchema,
+  })
+  .strict();
+
+const PlanAllocationComparisonSchema = z
+  .object({
+    allocation: DecimalStringSchema,
+    utilization: DecimalStringSchema,
+    surplus: DecimalStringSchema,
+    shortfall: DecimalStringSchema,
+    status: z.enum(["WITHIN_ALLOCATION", "OVER_ALLOCATION"]),
+  })
+  .strict();
+
+const ScenarioPlanSchema = z
+  .object({
+    key: z.enum(["low", "base", "high"]),
+    burnMultiplier: DecimalStringSchema,
+    plannedCredits: DecimalStringSchema,
+    averageDailyBurn: DecimalStringSchema,
+    metricBreakdown: z.array(PlanScenarioMetricCreditsSchema),
+    comparison: PlanAllocationComparisonSchema.nullable(),
+  })
+  .strict();
+
+export const PlanWarningSchema: z.ZodType<PlanWarning> = z
+  .object({
+    code: z.literal("OVER_ALLOCATION"),
+    scenarioKey: z.enum(["low", "base", "high"]),
+    plannedCredits: DecimalStringSchema,
+    allocation: DecimalStringSchema,
+    shortfall: DecimalStringSchema,
+  })
+  .strict();
+
+const PlanResultStructureSchema: z.ZodType<PlanResult> = z
+  .object({
+    schemaVersion: z.string().min(1),
+    methodologyVersion: z.string().min(1),
+    daysInPeriod: z.number().int().positive(),
+    baselinePlannedCredits: DecimalStringSchema,
+    baselineAverageDailyBurn: DecimalStringSchema,
+    metrics: z.array(PlanMetricCreditsSchema),
+    scenarios: z.array(ScenarioPlanSchema).length(3),
+    warnings: z.array(PlanWarningSchema),
+    calculationTrace: CalculationTraceSchema,
+  })
+  .strict();
+
+export const PlanResultSchema: z.ZodType<PlanResult> =
+  PlanResultStructureSchema.superRefine((result, context) => {
+    validatePlanResultSemantics(result).forEach((issue) => {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: pathFromInputPath(issue.path),
+        message: issue.message,
+        params: { forecastCode: issue.code },
+      });
+    });
+  });
+
 export const parseForecastInput = (input: unknown): ForecastInput => ForecastInputSchema.parse(input);
 
 export const parseForecastResult = (result: unknown): ForecastResult => ForecastResultSchema.parse(result);
+
+export const parsePlanInput = (input: unknown): PlanInput => PlanInputSchema.parse(input);
+
+export const parsePlanResult = (result: unknown): PlanResult => PlanResultSchema.parse(result);

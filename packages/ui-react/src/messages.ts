@@ -1,5 +1,9 @@
 import type { CreditBurndownMessages } from "./types.js";
 
+export function roundDisplayDecimal(value: string): string {
+  return roundDecimal(value);
+}
+
 function roundDecimal(value: string): string {
   const negative = value.startsWith("-");
   const digits = negative ? value.slice(1) : value;

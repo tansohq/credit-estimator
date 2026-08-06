@@ -1,0 +1,96 @@
+{
+  "name": "widely spread multipliers preserve low, base, and high ordering",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-06"
+    },
+    "metricEstimates": [
+      { "key": "small-metric", "estimatedUnits": "4", "creditsPerUnit": "2.5" },
+      { "key": "large-metric", "estimatedUnits": "3", "creditsPerUnit": "10" }
+    ],
+    "allocation": "50",
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.25" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "3" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysInPeriod": 5,
+    "baselinePlannedCredits": "40",
+    "baselineAverageDailyBurn": "8",
+    "metrics": [
+      { "key": "small-metric", "estimatedUnits": "4", "creditsPerUnit": "2.5", "plannedCredits": "10" },
+      { "key": "large-metric", "estimatedUnits": "3", "creditsPerUnit": "10", "plannedCredits": "30" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.25",
+        "plannedCredits": "10",
+        "averageDailyBurn": "2",
+        "metricBreakdown": [
+          { "key": "small-metric", "plannedCredits": "2.5" },
+          { "key": "large-metric", "plannedCredits": "7.5" }
+        ],
+        "comparison": {
+          "allocation": "50",
+          "utilization": "0.2",
+          "surplus": "40",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1",
+        "plannedCredits": "40",
+        "averageDailyBurn": "8",
+        "metricBreakdown": [
+          { "key": "small-metric", "plannedCredits": "10" },
+          { "key": "large-metric", "plannedCredits": "30" }
+        ],
+        "comparison": {
+          "allocation": "50",
+          "utilization": "0.8",
+          "surplus": "10",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "3",
+        "plannedCredits": "120",
+        "averageDailyBurn": "24",
+        "metricBreakdown": [
+          { "key": "small-metric", "plannedCredits": "30" },
+          { "key": "large-metric", "plannedCredits": "90" }
+        ],
+        "comparison": {
+          "allocation": "50",
+          "utilization": "2.4",
+          "surplus": "0",
+          "shortfall": "70",
+          "status": "OVER_ALLOCATION"
+        }
+      }
+    ],
+    "warnings": [
+      {
+        "code": "OVER_ALLOCATION",
+        "scenarioKey": "high",
+        "plannedCredits": "120",
+        "allocation": "50",
+        "shortfall": "70"
+      }
+    ]
+  }
+}

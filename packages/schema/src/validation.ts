@@ -1,4 +1,11 @@
-import type { ForecastInput, ForecastResult, ValidationIssue } from "./types.js";
+import type {
+  ForecastInput,
+  ForecastResult,
+  NamespacedExtensions,
+  PlanInput,
+  PlanResult,
+  ValidationIssue,
+} from "./types.js";
 
 const compareAbsoluteDecimals = (left: string, right: string): number => {
   const [leftInteger = "0", leftFraction = ""] = left.split(".");
@@ -85,6 +92,88 @@ const issue = (code: string, path: string, message: string): ValidationIssue => 
   path,
   message,
 });
+
+const scenarioAssumptionIssues = (
+  scenarios: readonly { readonly key: string; readonly burnMultiplier: string }[],
+): readonly ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  const expectedScenarioKeys = ["low", "base", "high"] as const;
+  const orderedScenarios =
+    scenarios.length === expectedScenarioKeys.length &&
+    scenarios.every((scenario, index) => scenario.key === expectedScenarioKeys[index]);
+  if (!orderedScenarios) {
+    issues.push(
+      issue(
+        "INVALID_SCENARIO_ORDER",
+        "input.scenarios",
+        "scenarios must contain exactly low, base, and high in that order",
+      ),
+    );
+  }
+
+  scenarios.forEach((scenario, index) => {
+    if (compareDecimalStrings(scenario.burnMultiplier, "0") < 0) {
+      issues.push(
+        issue(
+          "NEGATIVE_BURN_MULTIPLIER",
+          `input.scenarios[${index}].burnMultiplier`,
+          "burnMultiplier must be non-negative",
+        ),
+      );
+    }
+  });
+
+  if (orderedScenarios) {
+    const [low, base, high] = scenarios;
+    if (base?.burnMultiplier !== "1") {
+      issues.push(
+        issue(
+          "INVALID_BASE_MULTIPLIER",
+          "input.scenarios[1].burnMultiplier",
+          'base burnMultiplier must equal "1"',
+        ),
+      );
+    }
+    if (
+      low === undefined ||
+      base === undefined ||
+      high === undefined ||
+      compareDecimalStrings(low.burnMultiplier, base.burnMultiplier) >= 0 ||
+      compareDecimalStrings(base.burnMultiplier, high.burnMultiplier) >= 0
+    ) {
+      issues.push(
+        issue(
+          "INVALID_SCENARIO_MULTIPLIERS",
+          "input.scenarios",
+          "scenario burnMultipliers must satisfy low < base < high",
+        ),
+      );
+    }
+  }
+
+  return issues;
+};
+
+const extensionNamespaceIssues = (
+  extensions: NamespacedExtensions | undefined,
+): readonly ValidationIssue[] => {
+  if (extensions === undefined) {
+    return [];
+  }
+  const issues: ValidationIssue[] = [];
+  Object.keys(extensions).forEach((namespace) => {
+    if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)+$/u.test(namespace)) {
+      issues.push(
+        issue(
+          "INVALID_EXTENSION_NAMESPACE",
+          `input.extensions.${namespace}`,
+          "extension keys must use a collision-resistant namespace",
+        ),
+      );
+    }
+  });
+  return issues;
+};
 
 export const validateForecastInputSemantics = (
   input: ForecastInput,
@@ -220,59 +309,7 @@ export const validateForecastInputSemantics = (
     );
   }
 
-  const expectedScenarioKeys = ["low", "base", "high"] as const;
-  const orderedScenarios =
-    input.scenarios.length === expectedScenarioKeys.length &&
-    input.scenarios.every((scenario, index) => scenario.key === expectedScenarioKeys[index]);
-  if (!orderedScenarios) {
-    issues.push(
-      issue(
-        "INVALID_SCENARIO_ORDER",
-        "input.scenarios",
-        "scenarios must contain exactly low, base, and high in that order",
-      ),
-    );
-  }
-
-  input.scenarios.forEach((scenario, index) => {
-    if (compareDecimalStrings(scenario.burnMultiplier, "0") < 0) {
-      issues.push(
-        issue(
-          "NEGATIVE_BURN_MULTIPLIER",
-          `input.scenarios[${index}].burnMultiplier`,
-          "burnMultiplier must be non-negative",
-        ),
-      );
-    }
-  });
-
-  if (orderedScenarios) {
-    const [low, base, high] = input.scenarios;
-    if (base?.burnMultiplier !== "1") {
-      issues.push(
-        issue(
-          "INVALID_BASE_MULTIPLIER",
-          "input.scenarios[1].burnMultiplier",
-          'base burnMultiplier must equal "1"',
-        ),
-      );
-    }
-    if (
-      low === undefined ||
-      base === undefined ||
-      high === undefined ||
-      compareDecimalStrings(low.burnMultiplier, base.burnMultiplier) >= 0 ||
-      compareDecimalStrings(base.burnMultiplier, high.burnMultiplier) >= 0
-    ) {
-      issues.push(
-        issue(
-          "INVALID_SCENARIO_MULTIPLIERS",
-          "input.scenarios",
-          "scenario burnMultipliers must satisfy low < base < high",
-        ),
-      );
-    }
-  }
+  issues.push(...scenarioAssumptionIssues(input.scenarios));
 
   let previousScheduleDate: string | undefined;
   input.balance.schedule.forEach((entry, index) => {
@@ -297,19 +334,102 @@ export const validateForecastInputSemantics = (
     previousScheduleDate = entry.date;
   });
 
-  if (input.extensions !== undefined) {
-    Object.keys(input.extensions).forEach((namespace) => {
-      if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)+$/u.test(namespace)) {
-        issues.push(
-          issue(
-            "INVALID_EXTENSION_NAMESPACE",
-            `input.extensions.${namespace}`,
-            "extension keys must use a collision-resistant namespace",
-          ),
-        );
-      }
-    });
+  issues.push(...extensionNamespaceIssues(input.extensions));
+
+  return issues;
+};
+
+export const validatePlanInputSemantics = (
+  input: PlanInput,
+): readonly ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+
+  if (input.schemaVersion !== "1.0") {
+    issues.push(
+      issue(
+        "UNSUPPORTED_SCHEMA_VERSION",
+        "input.schemaVersion",
+        'schemaVersion must equal "1.0"',
+      ),
+    );
   }
+  if (input.methodologyVersion !== "1.0") {
+    issues.push(
+      issue(
+        "UNSUPPORTED_METHODOLOGY_VERSION",
+        "input.methodologyVersion",
+        'methodologyVersion must equal "1.0"',
+      ),
+    );
+  }
+
+  if (input.period.endDate <= input.period.startDate) {
+    issues.push(
+      issue(
+        "INVALID_PLAN_PERIOD",
+        "input.period.endDate",
+        "period.endDate must be later than period.startDate",
+      ),
+    );
+  }
+
+  if (input.metricEstimates.length === 0) {
+    issues.push(
+      issue(
+        "EMPTY_METRIC_ESTIMATES",
+        "input.metricEstimates",
+        "metricEstimates must contain at least one metric estimate",
+      ),
+    );
+  }
+
+  const seenMetricKeys = new Set<string>();
+  input.metricEstimates.forEach((metric, index) => {
+    if (seenMetricKeys.has(metric.key)) {
+      issues.push(
+        issue(
+          "DUPLICATE_METRIC_KEY",
+          `input.metricEstimates[${index}].key`,
+          `metricEstimates contains duplicate key ${metric.key}`,
+        ),
+      );
+    }
+    seenMetricKeys.add(metric.key);
+    if (compareDecimalStrings(metric.estimatedUnits, "0") < 0) {
+      issues.push(
+        issue(
+          "NEGATIVE_ESTIMATED_UNITS",
+          `input.metricEstimates[${index}].estimatedUnits`,
+          "estimatedUnits must be non-negative",
+        ),
+      );
+    }
+    if (compareDecimalStrings(metric.creditsPerUnit, "0") < 0) {
+      issues.push(
+        issue(
+          "NEGATIVE_CREDITS_PER_UNIT",
+          `input.metricEstimates[${index}].creditsPerUnit`,
+          "creditsPerUnit must be non-negative",
+        ),
+      );
+    }
+  });
+
+  if (
+    input.allocation !== undefined &&
+    compareDecimalStrings(input.allocation, "0") <= 0
+  ) {
+    issues.push(
+      issue(
+        "NON_POSITIVE_ALLOCATION",
+        "input.allocation",
+        "allocation must be greater than zero when supplied",
+      ),
+    );
+  }
+
+  issues.push(...scenarioAssumptionIssues(input.scenarios));
+  issues.push(...extensionNamespaceIssues(input.extensions));
 
   return issues;
 };
@@ -692,6 +812,343 @@ export const validateForecastResultSemantics = (
         "every low-balance scenario must have a low-balance warning",
       );
     }
+  });
+
+  return issues;
+};
+
+const roundHalfUpDiv = (numerator: bigint, denominator: bigint): bigint =>
+  (2n * numerator + denominator) / (2n * denominator);
+
+const scaledProduct = (left: string, right: string): bigint =>
+  roundHalfUpDiv(scaledDecimal(left) * scaledDecimal(right), DECIMAL_SCALE);
+
+export const validatePlanResultSemantics = (
+  result: PlanResult,
+): readonly ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  const add = (code: string, path: string, message: string) => {
+    issues.push(resultIssue(code, path, message));
+  };
+  const nonNegative = (value: string): boolean =>
+    compareDecimalStrings(value, "0") >= 0;
+  const requireNonNegative = (value: string, path: string) => {
+    if (!nonNegative(value)) {
+      add("NEGATIVE_RESULT_VALUE", path, `${path} must be non-negative`);
+    }
+  };
+
+  if (result.schemaVersion !== "1.0") {
+    add(
+      "UNSUPPORTED_SCHEMA_VERSION",
+      "result.schemaVersion",
+      'schemaVersion must equal "1.0"',
+    );
+  }
+  if (result.methodologyVersion !== "1.0") {
+    add(
+      "UNSUPPORTED_METHODOLOGY_VERSION",
+      "result.methodologyVersion",
+      'methodologyVersion must equal "1.0"',
+    );
+  }
+
+  requireNonNegative(result.baselinePlannedCredits, "result.baselinePlannedCredits");
+  requireNonNegative(
+    result.baselineAverageDailyBurn,
+    "result.baselineAverageDailyBurn",
+  );
+
+  if (result.metrics.length === 0) {
+    add(
+      "MISSING_PLAN_METRICS",
+      "result.metrics",
+      "metrics must contain at least one planned metric",
+    );
+  }
+
+  const seenMetricKeys = new Set<string>();
+  let baselineTotal = 0n;
+  result.metrics.forEach((metric, index) => {
+    const metricPath = `result.metrics[${index}]`;
+    if (seenMetricKeys.has(metric.key)) {
+      add(
+        "DUPLICATE_METRIC_KEY",
+        `${metricPath}.key`,
+        `metrics contains duplicate key ${metric.key}`,
+      );
+    }
+    seenMetricKeys.add(metric.key);
+    requireNonNegative(metric.estimatedUnits, `${metricPath}.estimatedUnits`);
+    requireNonNegative(metric.creditsPerUnit, `${metricPath}.creditsPerUnit`);
+    requireNonNegative(metric.plannedCredits, `${metricPath}.plannedCredits`);
+    if (
+      nonNegative(metric.estimatedUnits) &&
+      nonNegative(metric.creditsPerUnit) &&
+      scaledDecimal(metric.plannedCredits) !==
+        scaledProduct(metric.estimatedUnits, metric.creditsPerUnit)
+    ) {
+      add(
+        "METRIC_PLANNED_CREDITS_MISMATCH",
+        `${metricPath}.plannedCredits`,
+        "plannedCredits must equal estimatedUnits multiplied by creditsPerUnit",
+      );
+    }
+    baselineTotal += scaledDecimal(metric.plannedCredits);
+  });
+  if (scaledDecimal(result.baselinePlannedCredits) !== baselineTotal) {
+    add(
+      "BASELINE_PLANNED_CREDITS_MISMATCH",
+      "result.baselinePlannedCredits",
+      "baselinePlannedCredits must equal the sum of metric plannedCredits",
+    );
+  }
+  if (
+    scaledDecimal(result.baselineAverageDailyBurn) !==
+    roundHalfUpDiv(scaledDecimal(result.baselinePlannedCredits), BigInt(result.daysInPeriod))
+  ) {
+    add(
+      "BASELINE_AVERAGE_DAILY_BURN_MISMATCH",
+      "result.baselineAverageDailyBurn",
+      "baselineAverageDailyBurn must equal baselinePlannedCredits divided by daysInPeriod",
+    );
+  }
+
+  const expectedScenarioKeys = ["low", "base", "high"] as const;
+  if (
+    result.scenarios.length !== expectedScenarioKeys.length ||
+    !result.scenarios.every((scenario, index) => scenario.key === expectedScenarioKeys[index])
+  ) {
+    add(
+      "INVALID_SCENARIO_ORDER",
+      "result.scenarios",
+      "scenarios must contain exactly low, base, and high in that order",
+    );
+  }
+
+  const metricKeys = result.metrics.map(({ key }) => key);
+  result.scenarios.forEach((scenario, scenarioIndex) => {
+    const scenarioPath = `result.scenarios[${scenarioIndex}]`;
+    requireNonNegative(scenario.burnMultiplier, `${scenarioPath}.burnMultiplier`);
+    requireNonNegative(scenario.plannedCredits, `${scenarioPath}.plannedCredits`);
+    requireNonNegative(scenario.averageDailyBurn, `${scenarioPath}.averageDailyBurn`);
+
+    const breakdownKeys = scenario.metricBreakdown.map(({ key }) => key);
+    if (
+      breakdownKeys.length !== metricKeys.length ||
+      !breakdownKeys.every((key, index) => key === metricKeys[index])
+    ) {
+      add(
+        "METRIC_BREAKDOWN_MISMATCH",
+        `${scenarioPath}.metricBreakdown`,
+        "metricBreakdown keys must match result.metrics keys in order",
+      );
+    }
+
+    let breakdownTotal = 0n;
+    scenario.metricBreakdown.forEach((entry, entryIndex) => {
+      const entryPath = `${scenarioPath}.metricBreakdown[${entryIndex}]`;
+      requireNonNegative(entry.plannedCredits, `${entryPath}.plannedCredits`);
+      const metric = result.metrics[entryIndex];
+      if (
+        metric !== undefined &&
+        metric.key === entry.key &&
+        nonNegative(metric.plannedCredits) &&
+        nonNegative(scenario.burnMultiplier) &&
+        scaledDecimal(entry.plannedCredits) !==
+          scaledProduct(metric.plannedCredits, scenario.burnMultiplier)
+      ) {
+        add(
+          "BREAKDOWN_PLANNED_CREDITS_MISMATCH",
+          `${entryPath}.plannedCredits`,
+          "each breakdown plannedCredits must equal the metric plannedCredits multiplied by burnMultiplier",
+        );
+      }
+      breakdownTotal += scaledDecimal(entry.plannedCredits);
+    });
+    if (scaledDecimal(scenario.plannedCredits) !== breakdownTotal) {
+      add(
+        "PLANNED_CREDITS_MISMATCH",
+        `${scenarioPath}.plannedCredits`,
+        "scenario plannedCredits must equal the sum of its metricBreakdown plannedCredits",
+      );
+    }
+    if (
+      scaledDecimal(scenario.averageDailyBurn) !==
+      roundHalfUpDiv(scaledDecimal(scenario.plannedCredits), BigInt(result.daysInPeriod))
+    ) {
+      add(
+        "AVERAGE_DAILY_BURN_MISMATCH",
+        `${scenarioPath}.averageDailyBurn`,
+        "averageDailyBurn must equal scenario plannedCredits divided by daysInPeriod",
+      );
+    }
+
+    const comparison = scenario.comparison;
+    if (comparison !== null) {
+      const comparisonPath = `${scenarioPath}.comparison`;
+      if (compareDecimalStrings(comparison.allocation, "0") <= 0) {
+        add(
+          "NON_POSITIVE_ALLOCATION",
+          `${comparisonPath}.allocation`,
+          "comparison allocation must be greater than zero",
+        );
+      } else if (nonNegative(scenario.plannedCredits)) {
+        const scaledPlanned = scaledDecimal(scenario.plannedCredits);
+        const scaledAllocation = scaledDecimal(comparison.allocation);
+        if (
+          scaledDecimal(comparison.utilization) !==
+          roundHalfUpDiv(scaledPlanned * DECIMAL_SCALE, scaledAllocation)
+        ) {
+          add(
+            "UTILIZATION_MISMATCH",
+            `${comparisonPath}.utilization`,
+            "utilization must equal scenario plannedCredits divided by allocation",
+          );
+        }
+        const difference = scaledPlanned - scaledAllocation;
+        const expectedShortfall = difference > 0n ? difference : 0n;
+        const expectedSurplus = difference < 0n ? -difference : 0n;
+        if (scaledDecimal(comparison.shortfall) !== expectedShortfall) {
+          add(
+            "SHORTFALL_MISMATCH",
+            `${comparisonPath}.shortfall`,
+            "shortfall must equal max(0, plannedCredits - allocation)",
+          );
+        }
+        if (scaledDecimal(comparison.surplus) !== expectedSurplus) {
+          add(
+            "SURPLUS_MISMATCH",
+            `${comparisonPath}.surplus`,
+            "surplus must equal max(0, allocation - plannedCredits)",
+          );
+        }
+        const expectedStatus =
+          difference > 0n ? "OVER_ALLOCATION" : "WITHIN_ALLOCATION";
+        if (comparison.status !== expectedStatus) {
+          add(
+            "STATUS_MISMATCH",
+            `${comparisonPath}.status`,
+            "status must be OVER_ALLOCATION exactly when plannedCredits exceed allocation",
+          );
+        }
+      }
+    }
+  });
+
+  const comparisons = result.scenarios.map(({ comparison }) => comparison);
+  const withComparison = comparisons.filter((comparison) => comparison !== null);
+  if (withComparison.length !== 0 && withComparison.length !== comparisons.length) {
+    add(
+      "ALLOCATION_COMPARISON_MISMATCH",
+      "result.scenarios",
+      "either every scenario or no scenario may carry an allocation comparison",
+    );
+  }
+  if (
+    withComparison.length > 1 &&
+    !withComparison.every(
+      (comparison) => comparison.allocation === withComparison[0]?.allocation,
+    )
+  ) {
+    add(
+      "ALLOCATION_COMPARISON_MISMATCH",
+      "result.scenarios",
+      "every scenario comparison must use the same allocation",
+    );
+  }
+
+  const [lowPlan, basePlan, highPlan] = result.scenarios;
+  if (
+    lowPlan !== undefined &&
+    basePlan !== undefined &&
+    highPlan !== undefined
+  ) {
+    if (
+      scaledDecimal(basePlan.plannedCredits) !==
+      scaledDecimal(result.baselinePlannedCredits)
+    ) {
+      add(
+        "BASE_PLAN_MISMATCH",
+        "result.scenarios[1].plannedCredits",
+        "base scenario plannedCredits must equal baselinePlannedCredits",
+      );
+    }
+    if (
+      scaledDecimal(lowPlan.plannedCredits) > scaledDecimal(basePlan.plannedCredits) ||
+      scaledDecimal(basePlan.plannedCredits) > scaledDecimal(highPlan.plannedCredits)
+    ) {
+      add(
+        "INVALID_SCENARIO_RESULT_ORDER",
+        "result.scenarios",
+        "scenario results must preserve low, base, and high planned-credit order",
+      );
+    }
+  }
+
+  const warningKeys = new Set<string>();
+  result.warnings.forEach((warning, warningIndex) => {
+    const warningPath = `result.warnings[${warningIndex}]`;
+    const warningKey = `${warning.code}:${warning.scenarioKey}`;
+    if (warningKeys.has(warningKey)) {
+      add("DUPLICATE_WARNING", warningPath, "warnings must not contain duplicates");
+    }
+    warningKeys.add(warningKey);
+
+    const scenario = result.scenarios.find(({ key }) => key === warning.scenarioKey);
+    const comparison = scenario?.comparison ?? null;
+    if (
+      scenario === undefined ||
+      comparison === null ||
+      comparison.status !== "OVER_ALLOCATION" ||
+      warning.plannedCredits !== scenario.plannedCredits ||
+      warning.allocation !== comparison.allocation ||
+      warning.shortfall !== comparison.shortfall
+    ) {
+      add(
+        "OVER_ALLOCATION_WARNING_MISMATCH",
+        warningPath,
+        "over-allocation warning must match an OVER_ALLOCATION scenario comparison",
+      );
+    }
+  });
+  result.scenarios.forEach((scenario, scenarioIndex) => {
+    if (
+      scenario.comparison?.status === "OVER_ALLOCATION" &&
+      !result.warnings.some(
+        (warning) =>
+          warning.code === "OVER_ALLOCATION" && warning.scenarioKey === scenario.key,
+      )
+    ) {
+      add(
+        "MISSING_OVER_ALLOCATION_WARNING",
+        `result.scenarios[${scenarioIndex}]`,
+        "every over-allocation scenario must have an over-allocation warning",
+      );
+    }
+  });
+
+  const sourcePaths = new Set<string>();
+  result.calculationTrace.sourceInputs.forEach(({ path }, index) => {
+    if (sourcePaths.has(path)) {
+      add(
+        "DUPLICATE_TRACE_SOURCE",
+        `result.calculationTrace.sourceInputs[${index}].path`,
+        "calculation trace source paths must be unique",
+      );
+    }
+    sourcePaths.add(path);
+  });
+  const stepKeys = new Set<string>();
+  result.calculationTrace.steps.forEach(({ key }, index) => {
+    if (stepKeys.has(key)) {
+      add(
+        "DUPLICATE_TRACE_STEP",
+        `result.calculationTrace.steps[${index}].key`,
+        "calculation trace step keys must be unique",
+      );
+    }
+    stepKeys.add(key);
   });
 
   return issues;

@@ -1,0 +1,64 @@
+{
+  "name": "quarterly estimate without a candidate allocation returns null comparisons",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-01-01",
+      "endDate": "2026-04-01"
+    },
+    "metricEstimates": [
+      { "key": "workflow-runs", "estimatedUnits": "900", "creditsPerUnit": "1" }
+    ],
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.9" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.2" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysInPeriod": 90,
+    "baselinePlannedCredits": "900",
+    "baselineAverageDailyBurn": "10",
+    "metrics": [
+      { "key": "workflow-runs", "estimatedUnits": "900", "creditsPerUnit": "1", "plannedCredits": "900" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.9",
+        "plannedCredits": "810",
+        "averageDailyBurn": "9",
+        "metricBreakdown": [
+          { "key": "workflow-runs", "plannedCredits": "810" }
+        ],
+        "comparison": null
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1",
+        "plannedCredits": "900",
+        "averageDailyBurn": "10",
+        "metricBreakdown": [
+          { "key": "workflow-runs", "plannedCredits": "900" }
+        ],
+        "comparison": null
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "1.2",
+        "plannedCredits": "1080",
+        "averageDailyBurn": "12",
+        "metricBreakdown": [
+          { "key": "workflow-runs", "plannedCredits": "1080" }
+        ],
+        "comparison": null
+      }
+    ],
+    "warnings": []
+  }
+}

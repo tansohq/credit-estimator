@@ -11,6 +11,14 @@ Customers see how quickly they are using credits, whether credits will last
 through the current period, when depletion is likely, and how much risk exists
 under different usage scenarios.
 
+The workspace also includes a deterministic planning calculator for
+prospective buyers. It converts explicit per-metric usage estimates and
+host-supplied credit weights into expected credit consumption for a plan
+period — a month, quarter, or project expressed as explicit dates — applies
+low/base/high scenario multipliers, and compares each scenario against an
+optional candidate allocation. Buyers can compare commitment scenarios
+before purchase without usage history, money amounts, or predictions.
+
 The core runs locally and deterministically. Tanso is one optional adapter,
 not a required service or architectural dependency.
 
@@ -38,8 +46,12 @@ of the MVP. No automatic Tanso source connector is included.
 
 Primary user: a customer monitoring credits inside an AI product dashboard.
 
-Adopting user: the product or engineering team embedding the forecast and
-supplying the source-of-truth snapshot.
+Planning user: a prospective or current buyer estimating how many credits a
+period requires before committing to an allocation.
+
+Adopting user: the product or engineering team embedding the forecast or
+plan calculator and supplying the source-of-truth snapshot, credit weights,
+and candidate allocations.
 
 ## Problem
 
@@ -57,6 +69,14 @@ Companies can build this independently, but date boundaries, missing usage
 days, scenario math, balance changes, and chart consistency create repeated
 implementation work. A portable deterministic forecaster provides one
 explainable contract.
+
+Before purchase, buyers face the mirror-image problem: credit pricing makes
+committing to an allocation feel risky because translating expected work
+into credits is left as an exercise. A deterministic plan calculation —
+explicit estimates times explicit weights, compared across conservative,
+expected, and aggressive scenarios — reduces commitment anxiety the same
+way the burndown forecast reduces depletion anxiety: with explainable
+arithmetic, not predictions.
 
 ## Core hypothesis
 
@@ -183,12 +203,40 @@ changes or actions, controls data refresh, and chooses any export or CTA
 behavior. The component owns no authentication, storage, billing, top-up, or
 network logic.
 
+### Planning calculator
+
+The plan contract lives beside the forecast contract:
+
+1. `PlanInput`: explicit period dates, a non-empty per-metric estimate list
+   (unique `key`, optional `label`, non-negative `estimatedUnits`,
+   non-negative host-supplied `creditsPerUnit`), an optional candidate
+   `allocation`, and explicit low/base/high multipliers.
+2. `PlanResult`: per-metric planned credits, baseline total and average
+   daily burn, per-scenario totals with metric breakdowns, an allocation
+   comparison (utilization, surplus, shortfall, status) when an allocation
+   is supplied, structured `OVER_ALLOCATION` warnings, and ordered
+   calculation traces.
+3. Golden plan fixtures under `fixtures/golden-plans/` are executable
+   acceptance criteria, mirroring the forecast fixtures.
+4. JSON exchange ships with the same adapter guarantees, and the
+   controlled `CreditPlan` React components render the result with
+   buyer-facing defaults (Conservative/Expected/Aggressive scenarios, an
+   allocation meter, and a per-metric breakdown). CSV exchange for plans
+   is a later increment.
+
+See [planning-methodology.md](planning-methodology.md) for formulas.
+
 ### Later delivery
 
 - Automatic Tanso source retrieval and other product adapters
 - Optional hosted API wrapper as a deferred, non-MVP deployment choice
 - Additional framework wrappers when committed adopters require them
 - Package registry publication and public contribution policy
+- CSV exchange for the planning calculator
+- Optional money cost totals (planned credits times host-supplied unit
+  price) only as an explicit, versioned scope amendment
+- Cohort or similar-customer priors only as explicit host-supplied inputs,
+  never as in-core prediction
 
 The pure Tanso mapping adapter is implemented. Current integrations must still
 supply complete, ordered neutral daily usage buckets, the start-of-`asOf`
@@ -198,9 +246,11 @@ balance, and all forecast assumptions. Source retrieval remains host-owned.
 
 - Provider and infrastructure cost calculations
 - Customer-value or EVE modeling
-- Credit-weight recommendations
-- Revenue, gross-profit, or margin forecasts
-- Plan and package recommendations
+- Credit-weight recommendations (the plan calculator applies host-supplied
+  weights; it never derives or suggests them)
+- Revenue, gross-profit, margin, or money cost calculations
+- Plan and package recommendations (comparing against a host-supplied
+  candidate allocation is in scope; proposing one is not)
 - Credit pricing design
 - Runtime credit quote or rules engine
 - Model publication, approval, effective timestamps, or rollout governance
@@ -212,7 +262,9 @@ balance, and all forecast assumptions. Source retrieval remains host-owned.
 - Subscription or billing workflows
 - Stripe top-ups
 - Automated customer actions
-- Machine-learning forecasts in the deterministic core
+- Machine-learning forecasts or predictions in the deterministic core;
+  cohort or similar-customer data may only ever arrive as explicit
+  host-supplied inputs, and no such input exists in the current contracts
 
 The neutral contract uses `schemaVersion` and `methodologyVersion`. It does
 not use `modelVersion`.
@@ -242,6 +294,8 @@ not use `modelVersion`.
 | Future balance deltas | Forecast-only application | Supplies and executes real changes | Core MVP |
 | Embeddable React UI | Neutral accessible presentation | Embeds, themes, and supplies data | Primary MVP |
 | JSON/CSV adapters | Neutral serialization mapping | Imports or exports product data | Implemented |
+| Plan calculator | Plan schemas, deterministic plan calculation, warnings, traces | Supplies estimates, credit weights, and candidate allocation | Implemented |
+| Plan React component | Neutral accessible presentation | Embeds, themes, and supplies data | Implemented |
 | Local reference demo | Demonstrates browser-local integration | Runs or deploys it if useful | Implemented locally |
 | Tanso OSS adapter | Validates and maps an already-fetched, already-consistent Tanso forecast snapshot plus explicit assumptions | Owns source data, credentials, aggregation, consistency, and APIs | Implemented |
 | Automatic Tanso source connector | — | Fetches and assembles trustworthy source inputs | Deferred; not implemented |
@@ -276,6 +330,10 @@ not use `modelVersion`.
   schemas, core calculations, JSON/CSV exchange, or the React UI.
 - An adopting team can integrate its snapshot and render a useful forecast
   without rebuilding forecast formulas.
+- Every golden plan fixture passes offline; identical plan inputs produce
+  identical results; scenario totals always reconcile with their metric
+  breakdowns; and every plan status, warning, and comparison is traceable
+  to explicit inputs.
 
 ## Open decisions
 
@@ -286,6 +344,8 @@ not use `modelVersion`.
 - Whether committed non-React adopters justify a Web Component
 - Evidence and thresholds for customer-understanding success
 
-See [methodology.md](methodology.md) for formula semantics,
-[architecture.md](architecture.md) for dependencies and data flow, and
-[tanso-integration.md](tanso-integration.md) for the optional Tanso boundary.
+See [methodology.md](methodology.md) for forecast formula semantics,
+[planning-methodology.md](planning-methodology.md) for plan formula
+semantics, [architecture.md](architecture.md) for dependencies and data
+flow, and [tanso-integration.md](tanso-integration.md) for the optional
+Tanso boundary.

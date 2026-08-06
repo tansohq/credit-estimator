@@ -14,9 +14,18 @@ customers can understand:
 - shortfall or low-balance risk; and
 - the inputs and calculations behind every result.
 
+The workspace also ships a deterministic planning calculator for prospective
+buyers. It converts explicit per-metric usage estimates and host-supplied
+credit weights into expected credit consumption for a plan period, applies
+the same low/base/high scenario discipline, and compares each scenario
+against an optional candidate allocation. Planning requires no usage
+history and produces no money amounts.
+
 This is not a pricing-design tool. It does not calculate provider cost,
 customer value, credit weights, plan recommendations, or runtime credit
-quotes.
+quotes. Applying a host-supplied credit weight to a host-supplied estimate
+is in scope for the planning calculator; recommending weights, allocations,
+plans, or prices is not.
 
 Tanso is one optional adapter, not the architecture. The core and generic UI
 must work without Tanso, credentials, or network access.
@@ -41,8 +50,10 @@ Read completely:
 2. every file under `docs/`; and
 3. every fixture under `fixtures/golden-scenarios/`.
 
-Treat this file as the product boundary, `docs/methodology.md` as the formula
-source of truth, and golden fixtures as executable acceptance criteria. If
+Treat this file as the product boundary, `docs/methodology.md` and
+`docs/planning-methodology.md` as the formula sources of truth, and golden
+fixtures (`fixtures/golden-scenarios/` for forecasts,
+`fixtures/golden-plans/` for plans) as executable acceptance criteria. If
 they conflict, stop and document the conflict before changing files.
 
 ## Product boundary
@@ -77,8 +88,26 @@ The forecaster returns:
 - structured warnings; and
 - ordered calculation traces.
 
-The core owns only deterministic forecast calculation and neutral validation.
-It does not read or mutate live product state.
+The planning calculator consumes a separate, explicit `PlanInput` supplied
+by the host on behalf of a prospective or current buyer:
+
+- `schemaVersion` and `methodologyVersion`;
+- `period: { startDate, endDate }` defining the plan horizon;
+- a non-empty `metricEstimates` list, each with a unique `key`, optional
+  descriptive `label`, non-negative `estimatedUnits` for the whole period,
+  and a non-negative host-supplied `creditsPerUnit` weight;
+- an optional candidate `allocation` to compare against; and
+- explicit low, base, and high burn multipliers.
+
+Missing planning inputs are validation errors. Do not silently default them.
+The plan result returns per-metric planned credits, the baseline total and
+average daily burn, per-scenario totals with metric breakdowns, an
+allocation comparison (utilization, surplus, shortfall, status) when an
+allocation is supplied, structured warnings, and ordered calculation
+traces. See `docs/planning-methodology.md`.
+
+The core owns only deterministic forecast and plan calculation and neutral
+validation. It does not read or mutate live product state.
 
 ## Adopting-product boundary
 
@@ -105,9 +134,11 @@ Do not implement:
 
 - provider or infrastructure cost modeling;
 - customer-value or EVE modeling;
-- credit-weight recommendations;
-- price, revenue, margin, or package calculations;
-- plan-allocation recommendations;
+- credit-weight recommendations (applying host-supplied weights is allowed;
+  deriving or suggesting them is not);
+- price, revenue, margin, package, or money cost calculations;
+- plan-allocation recommendations (comparing against a host-supplied
+  candidate allocation is allowed; suggesting one is not);
 - runtime quote or rules-engine operations;
 - model publication, approval, rollout, or effective-time governance;
 - wallets, grants, deductions, transactions, or ledgers;
@@ -115,7 +146,9 @@ Do not implement:
 - billing or Stripe integration;
 - usage-event ingestion or storage;
 - authentication;
-- machine-learning predictions; or
+- machine-learning predictions (cohort or similar-customer priors may only
+  ever arrive as explicit host-supplied inputs, and no such input exists in
+  the current contracts); or
 - product-specific behavior in neutral packages.
 
 There is no `modelVersion` in the neutral forecast contract. Forecasts are
@@ -149,9 +182,10 @@ versioned only by `schemaVersion` and `methodologyVersion`.
 Target packages:
 
 - `@tansohq/credit-forecast-schema`: browser-compatible neutral inputs,
-  results, warnings, traces, and validation errors;
+  results, warnings, traces, and validation errors for both forecasts and
+  plans;
 - `@tansohq/credit-forecast-core`: validation orchestration, decimal-safe
-  calculations, warnings, and traces;
+  forecast and plan calculations, warnings, and traces;
 - `@tansohq/credit-burndown-react`: optional controlled React components for
   embedding the forecast in a customer dashboard;
 - delivery adapters for JSON and CSV snapshots; and
@@ -194,6 +228,10 @@ Dependency rules:
 6. Add optional product adapters only after their host data contracts are
    explicit. The pure Tanso snapshot mapper now satisfies this boundary; an
    automatic Tanso source connector remains deferred.
+7. Add the deterministic planning calculator: neutral plan schemas, the
+   pure plan calculation, golden plan fixtures, JSON exchange, and the
+   controlled `CreditPlan` React components. CSV exchange for plans is a
+   later increment.
 
 Do not duplicate forecast formulas in the UI. The UI presents core results.
 
@@ -232,15 +270,28 @@ copy and styling must remain product-neutral and themeable.
   balance.
 - **Status:** neutral scenario classification based on depletion and the
   supplied low-balance threshold.
+- **Metric estimate:** a buyer's explicit expected units of one pricing
+  metric across the whole plan period.
+- **Credit weight:** host-supplied `creditsPerUnit` for one pricing metric.
+  The calculator applies weights; it never derives or recommends them.
+- **Planned credits:** deterministic product of estimated units and credit
+  weight, per metric or summed per scenario.
+- **Candidate allocation:** an optional host-supplied allocation a plan is
+  compared against. The calculator never proposes one.
+- **Surplus:** credits by which a candidate allocation exceeds a scenario's
+  planned credits.
 
 Do not use balance, allocation, usage, burn, utilization, or shortfall as
-interchangeable terms.
+interchangeable terms. Plan shortfall is measured against the candidate
+allocation; forecast shortfall is measured against a negative projected
+ending balance.
 
 ## Quality bar
 
 Work is not ready until:
 
-- every golden fixture passes without network access or credentials;
+- every golden fixture — forecast and plan — passes without network access
+  or credentials;
 - every fixture supplies and asserts `schemaVersion` and
   `methodologyVersion`;
 - golden fixtures cover zero usage, steady burn, changing burn, short
@@ -258,7 +309,8 @@ Work is not ready until:
 
 ## Scope discipline
 
-Ship the smallest trustworthy burndown forecaster. Do not preserve pricing
-estimator concepts for compatibility. Do not add adjacent billing, metering,
-pricing, wallet, or publication features. Adapters and hosts remain
-replaceable; the deterministic forecast stays portable.
+Ship the smallest trustworthy burndown forecaster and planning calculator.
+Do not preserve pricing estimator concepts for compatibility. Do not add
+adjacent billing, metering, pricing, wallet, or publication features.
+Adapters and hosts remain replaceable; the deterministic calculations stay
+portable.

@@ -30,10 +30,32 @@ describe("CSS compatibility contract", () => {
       .map((match) => match[1]);
 
     expect(customProperties.length).toBeGreaterThan(0);
-    expect(customProperties.every((name) => name?.startsWith("credit-burndown-"))).toBe(true);
+    expect(
+      customProperties.every(
+        (name) => name?.startsWith("credit-burndown-") || name?.startsWith("credit-plan-"),
+      ),
+    ).toBe(true);
     expect(classNames.length).toBeGreaterThan(0);
-    expect(classNames.every((name) => name?.startsWith("credit-burndown-"))).toBe(true);
+    expect(
+      classNames.every(
+        (name) => name?.startsWith("credit-burndown-") || name?.startsWith("credit-plan-"),
+      ),
+    ).toBe(true);
     expect(styles).toContain("--credit-burndown-font-family: inherit");
     expect(styles).not.toMatch(/(?:^|\})\s*(?:html|body|:root)\b/gmu);
+  });
+
+  it("themes the plan component with the shared burndown tokens", () => {
+    const planSection = styles.slice(styles.indexOf(".credit-plan-root"));
+    const declaredProperties = [
+      ...planSection.matchAll(/^\s*(--[a-z][a-z0-9-]*)\s*:/gmu),
+    ].map((match) => match[1]?.slice(2));
+
+    expect(planSection).toContain("var(--credit-burndown-accent)");
+    expect(
+      declaredProperties
+        .filter((name) => name !== undefined && !name.startsWith("credit-plan-"))
+        .every((name) => name?.startsWith("credit-burndown-")),
+    ).toBe(true);
   });
 });

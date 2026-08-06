@@ -1,0 +1,127 @@
+{
+  "name": "repeating decimals round half-up at twelve fractional digits",
+  "schemaVersion": "1.0",
+  "methodologyVersion": "1.0",
+  "input": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "period": {
+      "startDate": "2026-06-01",
+      "endDate": "2026-06-04"
+    },
+    "metricEstimates": [
+      { "key": "third-unit", "estimatedUnits": "1", "creditsPerUnit": "0.333333333333" }
+    ],
+    "allocation": "1",
+    "scenarios": [
+      { "key": "low", "burnMultiplier": "0.5" },
+      { "key": "base", "burnMultiplier": "1" },
+      { "key": "high", "burnMultiplier": "1.5" }
+    ]
+  },
+  "expected": {
+    "schemaVersion": "1.0",
+    "methodologyVersion": "1.0",
+    "daysInPeriod": 3,
+    "baselinePlannedCredits": "0.333333333333",
+    "baselineAverageDailyBurn": "0.111111111111",
+    "metrics": [
+      { "key": "third-unit", "estimatedUnits": "1", "creditsPerUnit": "0.333333333333", "plannedCredits": "0.333333333333" }
+    ],
+    "scenarios": [
+      {
+        "key": "low",
+        "burnMultiplier": "0.5",
+        "plannedCredits": "0.166666666667",
+        "averageDailyBurn": "0.055555555556",
+        "metricBreakdown": [
+          { "key": "third-unit", "plannedCredits": "0.166666666667" }
+        ],
+        "comparison": {
+          "allocation": "1",
+          "utilization": "0.166666666667",
+          "surplus": "0.833333333333",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "base",
+        "burnMultiplier": "1",
+        "plannedCredits": "0.333333333333",
+        "averageDailyBurn": "0.111111111111",
+        "metricBreakdown": [
+          { "key": "third-unit", "plannedCredits": "0.333333333333" }
+        ],
+        "comparison": {
+          "allocation": "1",
+          "utilization": "0.333333333333",
+          "surplus": "0.666666666667",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      },
+      {
+        "key": "high",
+        "burnMultiplier": "1.5",
+        "plannedCredits": "0.5",
+        "averageDailyBurn": "0.166666666667",
+        "metricBreakdown": [
+          { "key": "third-unit", "plannedCredits": "0.5" }
+        ],
+        "comparison": {
+          "allocation": "1",
+          "utilization": "0.5",
+          "surplus": "0.5",
+          "shortfall": "0",
+          "status": "WITHIN_ALLOCATION"
+        }
+      }
+    ],
+    "warnings": [],
+    "calculationTrace": {
+      "sourceInputs": [
+        { "path": "input.schemaVersion", "value": "1.0" },
+        { "path": "input.methodologyVersion", "value": "1.0" },
+        { "path": "input.period.startDate", "value": "2026-06-01" },
+        { "path": "input.period.endDate", "value": "2026-06-04" },
+        { "path": "input.allocation", "value": "1" },
+        {
+          "path": "input.metricEstimates",
+          "value": [
+            { "key": "third-unit", "estimatedUnits": "1", "creditsPerUnit": "0.333333333333" }
+          ]
+        },
+        { "path": "input.scenarios[0].burnMultiplier", "value": "0.5" },
+        { "path": "input.scenarios[1].burnMultiplier", "value": "1" },
+        { "path": "input.scenarios[2].burnMultiplier", "value": "1.5" }
+      ],
+      "steps": [
+        {
+          "key": "metrics.third-unit.plannedCredits",
+          "formula": "estimatedUnits * creditsPerUnit",
+          "operands": { "estimatedUnits": "1", "creditsPerUnit": "0.333333333333" },
+          "result": "0.333333333333"
+        },
+        {
+          "key": "baselinePlannedCredits",
+          "formula": "sum(metrics[*].plannedCredits)",
+          "operands": { "metricPlannedCredits": ["0.333333333333"] },
+          "result": "0.333333333333"
+        },
+        {
+          "key": "daysInPeriod",
+          "formula": "calendar_days_in_[period.startDate,period.endDate)",
+          "operands": { "periodStartDate": "2026-06-01", "periodEndDate": "2026-06-04" },
+          "result": 3
+        },
+        {
+          "key": "baselineAverageDailyBurn",
+          "formula": "baselinePlannedCredits / daysInPeriod",
+          "operands": { "baselinePlannedCredits": "0.333333333333", "daysInPeriod": 3 },
+          "result": "0.111111111111"
+        }
+      ]
+    }
+  }
+}

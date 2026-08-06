@@ -125,6 +125,83 @@ export interface ForecastResult {
   readonly calculationTrace: CalculationTrace;
 }
 
+export type PlanStatus = "WITHIN_ALLOCATION" | "OVER_ALLOCATION";
+
+export interface PlanMetricEstimate {
+  readonly key: string;
+  readonly label?: string | undefined;
+  readonly estimatedUnits: DecimalString;
+  readonly creditsPerUnit: DecimalString;
+}
+
+export interface PlanScenario {
+  readonly key: ScenarioKey;
+  readonly burnMultiplier: DecimalString;
+}
+
+export interface PlanInput {
+  readonly schemaVersion: string;
+  readonly methodologyVersion: string;
+  readonly period: {
+    readonly startDate: ISODate;
+    readonly endDate: ISODate;
+  };
+  readonly metricEstimates: readonly PlanMetricEstimate[];
+  readonly allocation?: DecimalString | undefined;
+  readonly scenarios: readonly PlanScenario[];
+  readonly extensions?: NamespacedExtensions | undefined;
+}
+
+export interface PlanMetricCredits {
+  readonly key: string;
+  readonly label?: string | undefined;
+  readonly estimatedUnits: DecimalString;
+  readonly creditsPerUnit: DecimalString;
+  readonly plannedCredits: DecimalString;
+}
+
+export interface PlanScenarioMetricCredits {
+  readonly key: string;
+  readonly plannedCredits: DecimalString;
+}
+
+export interface PlanAllocationComparison {
+  readonly allocation: DecimalString;
+  readonly utilization: DecimalString;
+  readonly surplus: DecimalString;
+  readonly shortfall: DecimalString;
+  readonly status: PlanStatus;
+}
+
+export interface ScenarioPlan {
+  readonly key: ScenarioKey;
+  readonly burnMultiplier: DecimalString;
+  readonly plannedCredits: DecimalString;
+  readonly averageDailyBurn: DecimalString;
+  readonly metricBreakdown: readonly PlanScenarioMetricCredits[];
+  readonly comparison: PlanAllocationComparison | null;
+}
+
+export interface PlanWarning {
+  readonly code: "OVER_ALLOCATION";
+  readonly scenarioKey: ScenarioKey;
+  readonly plannedCredits: DecimalString;
+  readonly allocation: DecimalString;
+  readonly shortfall: DecimalString;
+}
+
+export interface PlanResult {
+  readonly schemaVersion: string;
+  readonly methodologyVersion: string;
+  readonly daysInPeriod: number;
+  readonly baselinePlannedCredits: DecimalString;
+  readonly baselineAverageDailyBurn: DecimalString;
+  readonly metrics: readonly PlanMetricCredits[];
+  readonly scenarios: readonly ScenarioPlan[];
+  readonly warnings: readonly PlanWarning[];
+  readonly calculationTrace: CalculationTrace;
+}
+
 export interface ValidationIssue {
   readonly code: string;
   readonly path: string;
