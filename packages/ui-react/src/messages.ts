@@ -70,6 +70,8 @@ export const defaultCreditBurndownMessages: CreditBurndownMessages = {
     })[status],
   creditsValue: (value) => `${roundDecimal(value)} credits`,
   scenarioBalanceValue: (value) => roundDecimal(value),
+  scenarioOutcomeBalance: (value) => `${roundDecimal(value)} left`,
+  scenarioOutcomeDepletion: (date) => `out ${date}`,
   utilizationValue: (value) => `${roundDecimal(value)}× allocation`,
   dayCount: (count) => `${count} ${count === 1 ? "day" : "days"}`,
   periodValue: (startDate, endDate) => `${startDate} to ${endDate} (end exclusive)`,

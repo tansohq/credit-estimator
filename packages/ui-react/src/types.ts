@@ -62,6 +62,8 @@ export interface CreditBurndownMessages {
   statusText: (status: ForecastStatus) => string;
   creditsValue: (value: string) => string;
   scenarioBalanceValue: (value: string) => string;
+  scenarioOutcomeBalance: (value: string) => string;
+  scenarioOutcomeDepletion: (date: string) => string;
   utilizationValue: (value: string) => string;
   dayCount: (count: number) => string;
   periodValue: (startDate: string, endDate: string) => string;

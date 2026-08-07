@@ -482,4 +482,26 @@ describe("CreditBurndown", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("shows outcome-aware values in the scenario toggle", () => {
+    const depletedResult = {
+      ...forecastResult,
+      scenarios: forecastResult.scenarios.map((scenario) =>
+        scenario.key === "high"
+          ? {
+              ...scenario,
+              endingBalance: "-20",
+              depletionDate: "2026-01-04",
+              shortfall: "20",
+              status: "DEPLETION_PROJECTED" as const,
+            }
+          : scenario,
+      ),
+    };
+    render(<CreditBurndownView input={forecastInput} result={depletedResult} />);
+
+    expect(screen.getByText("80 left")).toBeVisible();
+    expect(screen.getByText("out 2026-01-04")).toBeVisible();
+    expect(screen.queryByText("-20")).toBeNull();
+  });
+
 });
